@@ -211,7 +211,7 @@
 ### Left-Border Accent
 ```html
 <div class="panel flat" 
-     style="border-left: 3px solid rgba(90, 148, 255, 0.50);">
+     style="border-left: 3px solid rgba(40, 180, 99, 0.50);">
   ...
 </div>
 ```

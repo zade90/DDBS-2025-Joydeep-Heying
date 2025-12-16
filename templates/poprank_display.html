@@ -25,7 +25,7 @@
 
                 <div class="stack">
                     {% for article in record.articles %}
-                        <div class="panel compact flat" style="border-left: 3px solid rgba(90, 148, 255, 0.50); padding-left: 18px;">
+                        <div class="panel compact flat" style="border-left: 3px solid rgba(40, 180, 99, 0.50); padding-left: 18px;">
                             <a class="card-link" href="{{ url_for('article_detail', article_id=article.aid) }}">
                                 <strong>{{ article.title }}</strong>
                             </a>

@@ -18,9 +18,9 @@
     --border: rgba(240, 244, 255, 0.12);
     --border-strong: rgba(240, 244, 255, 0.20);
 
-    --primary: #5a94ff;
-    --primary-hover: #72a5ff;
-    --primary-2: #68d7ff;
+    --primary: #28b463; /* green */
+    --primary-hover: #38d58a;
+    --primary-2: #7be4a5;
     --success: #3dd899;
     --success-hover: #50e0a5;
     --warning: #ffc53d;
@@ -31,7 +31,7 @@
     --shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
     --shadow-lg: 0 28px 80px rgba(0, 0, 0, 0.50);
     --shadow-soft: 0 12px 36px rgba(0, 0, 0, 0.28);
-    --shadow-btn: 0 8px 24px rgba(90, 148, 255, 0.22);
+    --shadow-btn: 0 8px 24px rgba(40, 180, 99, 0.22);
     --radius: 16px;
     --radius-lg: 20px;
     --radius-sm: 12px;
@@ -77,8 +77,8 @@ body {
     margin: 0;
     color: var(--text);
     background:
-        radial-gradient(1400px 700px at 18% -12%, rgba(90, 148, 255, 0.24), transparent 52%),
-        radial-gradient(1000px 550px at 88% -5%, rgba(104, 215, 255, 0.18), transparent 48%),
+        radial-gradient(1400px 700px at 18% -12%, rgba(40, 180, 99, 0.24), transparent 52%),
+        radial-gradient(1000px 550px at 88% -5%, rgba(104, 215, 155, 0.18), transparent 48%),
         radial-gradient(1300px 650px at 65% 108%, rgba(61, 216, 153, 0.13), transparent 56%),
         linear-gradient(180deg, var(--bg), var(--bg-soft));
     background-attachment: fixed;
@@ -183,8 +183,8 @@ a {
     display: grid;
     place-items: center;
     border-radius: 14px;
-    background: linear-gradient(135deg, rgba(90, 148, 255, 0.95), rgba(104, 215, 255, 0.70));
-    box-shadow: 0 8px 24px rgba(90, 148, 255, 0.28);
+    background: linear-gradient(135deg, rgba(40, 180, 99, 0.95), rgba(104, 215, 155, 0.70));
+    box-shadow: 0 8px 24px rgba(40, 180, 99, 0.28);
     font-weight: 800;
     font-size: 1.4rem;
     animation: float 3s ease-in-out infinite;
@@ -231,9 +231,9 @@ a {
     position: absolute;
     inset: 0;
     border-radius: 12px;
-    background: rgba(90, 148, 255, 0.08);
+    background: rgba(40, 180, 99, 0.08);
     opacity: 0;
-    transition: opacity 180ms ease;
+    background: rgba(40, 180, 99, 0.08);
 }
 
 .nav a:hover {
@@ -246,10 +246,10 @@ a {
 }
 
 .nav a.active {
-    background: rgba(90, 148, 255, 0.20);
-    border-color: rgba(90, 148, 255, 0.40);
+    background: rgba(40, 180, 99, 0.20);
+    border-color: rgba(40, 180, 99, 0.40);
     color: var(--text-bright);
-    box-shadow: 0 4px 16px rgba(90, 148, 255, 0.18);
+    box-shadow: 0 4px 16px rgba(40, 180, 99, 0.18);
 }
 
 .nav-toggle {
@@ -389,8 +389,8 @@ button:active,
 
 .btn-primary,
 button.btn-primary {
-    border-color: rgba(90, 148, 255, 0.50);
-    background: linear-gradient(135deg, rgba(90, 148, 255, 0.90), rgba(104, 215, 255, 0.60));
+    border-color: rgba(40, 180, 99, 0.50);
+    background: linear-gradient(135deg, rgba(40, 180, 99, 0.90), rgba(104, 215, 155, 0.60));
     box-shadow: var(--shadow-btn);
     color: var(--text-bright);
     font-weight: 700;
@@ -398,9 +398,9 @@ button.btn-primary {
 
 .btn-primary:hover,
 button.btn-primary:hover {
-    background: linear-gradient(135deg, var(--primary-hover), rgba(104, 215, 255, 0.75));
-    box-shadow: 0 12px 32px rgba(90, 148, 255, 0.32);
-}
+    background: linear-gradient(135deg, var(--primary-hover), rgba(104, 215, 155, 0.75));
+    box-shadow: 0 12px 32px rgba(40, 180, 99, 0.32);
+} 
 
 .btn-danger,
 button.btn-danger {
@@ -490,8 +490,8 @@ textarea {
 input:focus,
 textarea:focus,
 select:focus {
-    border-color: rgba(90, 148, 255, 0.70);
-    box-shadow: 0 0 0 4px rgba(90, 148, 255, 0.20);
+    border-color: rgba(40, 180, 99, 0.70);
+    box-shadow: 0 0 0 4px rgba(40, 180, 99, 0.20);
     background: rgba(10, 15, 30, 0.80);
 }
 
@@ -555,7 +555,7 @@ textarea::placeholder {
 }
 
 .table tr:hover td {
-    background: rgba(90, 148, 255, 0.08);
+    background: rgba(40, 180, 99, 0.08);
 }
 
 /* Cards / article grid */
@@ -580,20 +580,20 @@ textarea::placeholder {
     position: absolute;
     inset: 0;
     border-radius: var(--radius);
-    background: linear-gradient(135deg, rgba(90, 148, 255, 0.08), transparent);
+    background: linear-gradient(135deg, rgba(40, 180, 99, 0.08), transparent);
     opacity: 0;
     transition: opacity 220ms ease;
 }
 
 .card:hover {
     transform: translateY(-4px);
-    border-color: rgba(90, 148, 255, 0.45);
+    border-color: rgba(40, 180, 99, 0.45);
     box-shadow: 0 20px 48px rgba(0, 0, 0, 0.35);
 }
 
 .card:hover::before {
     opacity: 1;
-}
+} 
 
 .card-thumbnail-container {
     width: 100%;
@@ -651,7 +651,7 @@ textarea::placeholder {
     align-items: center;
     gap: 8px;
     margin-top: 14px;
-    color: rgba(104, 215, 255, 0.95);
+    color: rgba(40, 180, 99, 0.95);
     text-decoration: none;
     font-weight: 600;
     font-size: 0.96rem;
@@ -873,17 +873,17 @@ textarea::placeholder {
 }
 
 ::-webkit-scrollbar-thumb {
-    background: rgba(90, 148, 255, 0.35);
+    background: rgba(40, 180, 99, 0.35);
     border-radius: 5px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: rgba(90, 148, 255, 0.55);
+    background: rgba(40, 180, 99, 0.55);
 }
 
 /* Selection */
 ::selection {
-    background: rgba(90, 148, 255, 0.35);
+    background: rgba(40, 180, 99, 0.35);
     color: var(--text-bright);
 }
 
@@ -902,8 +902,8 @@ textarea::placeholder {
     border-radius: 8px;
     font-size: 0.88rem;
     font-weight: 600;
-    background: rgba(90, 148, 255, 0.16);
-    border: 1px solid rgba(90, 148, 255, 0.30);
+    background: rgba(40, 180, 99, 0.16);
+    border: 1px solid rgba(40, 180, 99, 0.30);
     color: var(--primary-2);
 }
 

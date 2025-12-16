@@ -7,8 +7,8 @@
 - **Gradient backgrounds** with radial overlays for depth
 - **Improved contrast** for better readability (WCAG compliant)
 - **Theme colors**: 
-  - Primary: `#5a94ff` (vibrant blue)
-  - Secondary: `#68d7ff` (cyan accent)
+  - Primary: `#28b463` (vibrant green)
+  - Secondary: `#7be4a5` (mint accent)
   - Success: `#3dd899` (mint green)
   - Warning: `#ffc53d` (amber)
   - Danger: `#ff6b7f` (rose)

@@ -13,7 +13,7 @@
 
     <div class="panel stack">
         {% for article in articles %}
-            <div class="panel compact flat" style="border-left: 3px solid rgba(90, 148, 255, 0.50); padding-left: 18px;">
+            <div class="panel compact flat" style="border-left: 3px solid rgba(40, 180, 99, 0.50); padding-left: 18px;">
                 <a class="card-link" href="{{ url_for('articles_page') }}?search={{ article.title|replace(' ', '+') }}">
                     <strong>{{ article.title }}</strong>
                 </a>
