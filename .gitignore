@@ -1,0 +1,4 @@
+db-generation/
+data/
+__pycache__/
+mongo-env/
