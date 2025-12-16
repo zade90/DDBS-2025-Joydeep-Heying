@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Articles</h1>
+            <p class="page-subtitle">Browse articles and open details. Use search for exact title match.</p>
+        </div>
+        <div class="page-actions">
+            <a class="btn btn-primary" href="{{ url_for('add_article') }}">Add Article</a>
+        </div>
+    </div>
+
+    <div class="panel">
+        <section class="article-search">
+            <form class="search-form" method="get" action="{{ url_for('articles_page') }}">
+                <input type="text" name="search" placeholder="Search by article title..." value="{{ search_query }}">
+                <button class="btn btn-primary" type="submit">Search</button>
+            </form>
+        </section>
+    </div>
+
+    <section class="article-grid">
+        {% if articles %}
+            {% for article in articles %}
+                <div class="card">
+                    <div class="card-thumbnail-container">
+                        {% if article.image_url %}
+                            <img src="{{ article.image_url }}" alt="{{ article.title }}" class="article-thumbnail">
+                        {% else %}
+                            <div class="help-text">No image</div>
+                        {% endif %}
+                    </div>
+                    <div class="card-body">
+                        <h3 class="card-title">{{ article.title }}</h3>
+                        <p class="card-description">{{ article.category }}</p>
+                        <p class="card-description">{{ article.abstract[:100] }}...</p>
+                        <a class="card-link" href="{{ url_for('article_detail', article_id=article._id) }}">Read more</a>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="panel" style="grid-column: 1 / -1; text-align: center; padding: 48px;">
+                <h3 style="margin: 0 0 10px 0; color: var(--muted);">No articles found</h3>
+                <p class="help-text">Try adjusting your search query or browse all articles.</p>
+            </div>
+        {% endif %}
+    </section>
+{% endblock %}

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="page-header">
+        <div style="max-width: 75ch;">
+            <h1 class="page-title">{{ article.title }}</h1>
+            <p class="page-subtitle">
+                <span style="display: inline-flex; align-items: center; gap: 8px;">
+                    <span style="display: inline-block; width: 6px; height: 6px; background: var(--primary); border-radius: 50%;"></span>
+                    {{ article.category }}
+                </span>
+                <span style="margin: 0 8px; opacity: 0.5;">•</span>
+                {{ article.human_readable_timestamp }}
+            </p>
+        </div>
+        <div class="page-actions">
+            <a class="btn" href="{{ url_for('articles_page') }}">Back to Articles</a>
+            <a class="btn btn-warning" href="{{ url_for('edit_article', article_id=article._id) }}">Edit</a>
+            <form method="POST" action="{{ url_for('delete_article', article_id=article._id) }}" style="display:inline;">
+                <button class="btn btn-danger" type="submit" onclick="return confirm('Are you sure you want to delete this article?');">Delete</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="panel stack">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; padding: 16px; background: rgba(90, 148, 255, 0.08); border-radius: 12px; border: 1px solid rgba(90, 148, 255, 0.20);">
+            <div>
+                <div style="font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted-2); margin-bottom: 6px;">Authors</div>
+                <div style="color: var(--text);">{{ article.authors }}</div>
+            </div>
+            <div>
+                <div style="font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted-2); margin-bottom: 6px;">Language</div>
+                <div style="color: var(--text);">{{ article.language }}</div>
+            </div>
+            <div>
+                <div style="font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted-2); margin-bottom: 6px;">Tags</div>
+                <div style="color: var(--text);">{{ article.articleTags }}</div>
+            </div>
+        </div>
+
+        <div>
+            <h2 class="section-title">Abstract</h2>
+            <div style="color: var(--muted); font-size: 1.02rem; line-height: 1.7;">{{ article.abstract }}</div>
+        </div>
+
+        {% if article.content %}
+            <div>
+                <h2 class="section-title">Content</h2>
+                <div style="color: var(--muted); font-size: 1.0rem; line-height: 1.7;">{{ article.content }}</div>
+            </div>
+        {% endif %}
+
+        {% if article.image_urls %}
+            <div>
+                <h2 class="section-title">Images</h2>
+                <div class="media-grid">
+                    {% for image_url in article.image_urls %}
+                        <img src="{{ image_url }}" alt="Image">
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+
+        {% if article.video_url %}
+            <div>
+                <h2 class="section-title">Video</h2>
+                <video controls style="width: 100%; max-width: 800px; border-radius: var(--radius);">
+                    <source src="{{ article.video_url }}" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+        {% endif %}
+    </div>
+
+{% endblock %}

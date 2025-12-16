@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Add Article</h1>
+            <p class="page-subtitle">Create a new article record.</p>
+        </div>
+        <div class="page-actions">
+            <a class="btn" href="{{ url_for('articles_page') }}">Back to Articles</a>
+        </div>
+    </div>
+
+    <div class="panel">
+        <form method="POST" enctype="multipart/form-data" class="stack">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="title">Title</label>
+                    <input id="title" type="text" name="title" placeholder="Title" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="category">Category</label>
+                    <input id="category" type="text" name="category" placeholder="Category" required>
+                </div>
+
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label for="abstract">Abstract</label>
+                    <textarea id="abstract" name="abstract" placeholder="Abstract" required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="articleTags">Tags</label>
+                    <input id="articleTags" type="text" name="articleTags" placeholder="Tags" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="authors">Authors</label>
+                    <input id="authors" type="text" name="authors" placeholder="Authors" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="language">Language</label>
+                    <input id="language" type="text" name="language" placeholder="Language" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="text">Text</label>
+                    <input id="text" type="text" name="text" placeholder="Text" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="image">Image Filename(s)</label>
+                    <input id="image" type="text" name="image" placeholder="image1.jpg, image2.png">
+                    <div class="help-text">Uses media store filenames (comma-separated supported).</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="video">Video Filename</label>
+                    <input id="video" type="text" name="video" placeholder="video.mp4">
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button class="btn btn-primary" type="submit">Submit</button>
+                <a class="btn" href="{{ url_for('articles_page') }}">Cancel</a>
+            </div>
+        </form>
+    </div>
+
+{% endblock %}

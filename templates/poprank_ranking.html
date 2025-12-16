@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">PopRank Ranking</h1>
+            <p class="page-subtitle">{{ timestamp }} • {{ granularity }}</p>
+        </div>
+        <div class="page-actions">
+            <a class="btn" href="{{ url_for('poprank_page') }}">Back to PopRank</a>
+        </div>
+    </div>
+
+    <div class="panel stack">
+        {% for article in articles %}
+            <div class="panel compact flat" style="border-left: 3px solid rgba(90, 148, 255, 0.50); padding-left: 18px;">
+                <a class="card-link" href="{{ url_for('articles_page') }}?search={{ article.title|replace(' ', '+') }}">
+                    <strong>{{ article.title }}</strong>
+                </a>
+                <div class="help-text" style="margin-top: 6px;">{{ article.abstract }}</div>
+            </div>
+        {% endfor %}
+    </div>
+{% endblock %}

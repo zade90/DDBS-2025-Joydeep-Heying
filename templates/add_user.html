@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Add User</h1>
+            <p class="page-subtitle">Create a new user record.</p>
+        </div>
+        <div class="page-actions">
+            <a class="btn" href="{{ url_for('users_page') }}">Back to Users</a>
+        </div>
+    </div>
+
+    <div class="panel">
+        <form method="POST" class="stack">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="name">Name</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="phone">Phone</label>
+                    <input type="text" id="phone" name="phone" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="gender">Gender</label>
+                    <input type="text" id="gender" name="gender" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="dept">Department</label>
+                    <input type="text" id="dept" name="dept" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="grade">Grade</label>
+                    <input type="text" id="grade" name="grade" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="language">Language</label>
+                    <input type="text" id="language" name="language" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="region">Region</label>
+                    <input type="text" id="region" name="region" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="role">Role</label>
+                    <input type="text" id="role" name="role" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="preferTags">Preferred Tags</label>
+                    <input type="text" id="preferTags" name="preferTags" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="obtainedCredits">Obtained Credits</label>
+                    <input type="text" id="obtainedCredits" name="obtainedCredits" required>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button class="btn btn-primary" type="submit">Add User</button>
+                <a class="btn" href="{{ url_for('users_page') }}">Cancel</a>
+            </div>
+        </form>
+    </div>
+
+{% endblock %}
