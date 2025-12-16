@@ -3,24 +3,66 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ title }}</title>
+    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#0b1220">
+    <title>{{ title or 'Database UI' }}</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
-    <header>
-    Dominik Klisiewicz 2024400515 Suraj Joshi 2024280205
-    </header>
-    
-    <nav>
-        <a href="/users/">Users</a>
-        <a href="/articles/">Articles</a>
-        <a href="/poprank/">Poprank</a>
-        <!-- <a href="{{ url_for('poprank_page') }}">Poprank</a> -->
-    </nav>
+    <header class="topbar">
+        <div class="topbar-inner">
+            <a class="brand" href="{{ url_for('home') }}">
+                <span class="brand-badge">DB</span>
+                <span class="brand-title">
+                    <span>Database UI</span>
+                    <small>Users • Articles • PopRank</small>
+                </span>
+            </a>
 
-    <main>
-        {% block content %}{% endblock %}
+            <input class="nav-toggle" type="checkbox" id="nav-toggle" aria-label="Toggle navigation" />
+            <label class="nav-toggle-label" for="nav-toggle">Menu</label>
+
+            <nav class="nav" aria-label="Primary">
+                <a href="/users/" class="{% if request.path.startswith('/users') %}active{% endif %}">Users</a>
+                <a href="/articles/" class="{% if request.path.startswith('/articles') %}active{% endif %}">Articles</a>
+                <a href="/poprank/" class="{% if request.path.startswith('/poprank') %}active{% endif %}">PopRank</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        {% block content %}
+            <div class="panel hero" style="text-align: center; position: relative; overflow: hidden;">
+                <div style="position: absolute; top: -50%; left: -20%; width: 140%; height: 200%; background: radial-gradient(circle at center, rgba(90, 148, 255, 0.08), transparent 50%); pointer-events: none;"></div>
+                <div style="position: relative; z-index: 1;">
+                    <h1 style="margin-bottom: 16px;">Welcome to Database UI</h1>
+                    <p style="margin: 0 auto 24px; font-size: 1.12rem;">Manage users, browse articles, and view PopRank rankings with a modern, responsive interface.</p>
+                    <div class="hero-actions" style="justify-content: center;">
+                        <a class="btn btn-primary" href="/users/">
+                            <span>👥</span>
+                            Open Users
+                        </a>
+                        <a class="btn btn-primary" href="/articles/">
+                            <span>📰</span>
+                            Browse Articles
+                        </a>
+                        <a class="btn" href="/poprank/">
+                            <span>📊</span>
+                            View PopRank
+                        </a>
+                    </div>
+                </div>
+            </div>
+        {% endblock %}
     </main>
+
+    <footer class="footer">
+        <div class="footer-inner">
+            <div>DBMS Project UI</div>
+            <div>Joydeep and Heyingg</div>
+        </div>
+    </footer>
 </body>
 </html>

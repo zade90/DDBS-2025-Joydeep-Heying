@@ -1,14 +1,28 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <h1>Select Granularity</h1>
-    <form method="POST" action="{{ url_for('poprank_page') }}">
-        <label for="granularity">Choose Granularity:</label>
-        <select name="granularity" id="granularity">
-            <option value="daily">Daily</option>
-            <option value="weekly">Weekly</option>
-            <option value="monthly">Monthly</option>
-        </select>
-        <button type="submit">Show Articles</button>
-    </form>
-    {% endblock %}
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">PopRank</h1>
+            <p class="page-subtitle">Pick a granularity to view popular article rankings.</p>
+        </div>
+    </div>
+
+    <div class="panel">
+        <form method="POST" action="{{ url_for('poprank_page') }}" class="stack">
+            <div class="form-group">
+                <label for="granularity">Granularity</label>
+                <select name="granularity" id="granularity">
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                </select>
+                <div class="help-text">This loads available ranking snapshots for the selected granularity.</div>
+            </div>
+
+            <div class="form-actions">
+                <button class="btn btn-primary" type="submit">Show Articles</button>
+            </div>
+        </form>
+    </div>
+{% endblock %}

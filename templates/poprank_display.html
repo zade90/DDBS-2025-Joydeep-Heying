@@ -1,28 +1,40 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1>PopRank Results ({{ granularity }})</h1>
-    
-    {% for record in all_articles %}
-        <h2>
-            <!-- Link to the ranking page for the specific timestamp -->
-            <a href="{{ url_for('poprank_ranking', granularity=granularity, timestamp=record.timestamp_ms) }}">
-                Timestamp: {{ record.timestamp }}
-            </a>
-        </h2>
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">PopRank Results</h1>
+            <p class="page-subtitle">Granularity: {{ granularity }}</p>
+        </div>
+        <div class="page-actions">
+            <a class="btn" href="{{ url_for('poprank_page') }}">Change Granularity</a>
+        </div>
+    </div>
 
-        <ul>
-            {% for article in record.articles %}
-                <li>
-                    <!-- Link to the article page using the article's aid -->
-                    <a href="{{ url_for('article_detail', article_id=article.aid) }}">
-                        <strong>{{ article.title }}</strong>
-                    </a>
-                    <br>
-                    <p>{{ article.abstract }}</p>
-                </li>
-            {% endfor %}
-        </ul>
-    {% endfor %}
+    <div class="stack">
+        {% for record in all_articles %}
+            <div class="panel">
+                <div class="page-header" style="margin-bottom: 14px;">
+                    <div>
+                        <h2 style="margin: 0; font-size: 1.25rem; font-weight: 600;">
+                            <a class="card-link" href="{{ url_for('poprank_ranking', granularity=granularity, timestamp=record.timestamp_ms) }}">{{ record.timestamp }}</a>
+                        </h2>
+                        <p class="page-subtitle" style="margin-top: 4px;">Snapshot ranking for this {{ granularity }} period.</p>
+                    </div>
+                </div>
+
+                <div class="stack">
+                    {% for article in record.articles %}
+                        <div class="panel compact flat" style="border-left: 3px solid rgba(90, 148, 255, 0.50); padding-left: 18px;">
+                            <a class="card-link" href="{{ url_for('article_detail', article_id=article.aid) }}">
+                                <strong>{{ article.title }}</strong>
+                            </a>
+                            <div class="help-text" style="margin-top: 6px;">{{ article.abstract }}</div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
 
 {% endblock %}
