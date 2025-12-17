@@ -2,3 +2,4 @@ db-generation/
 data/
 __pycache__/
 mongo-env/
+__pycache__/
