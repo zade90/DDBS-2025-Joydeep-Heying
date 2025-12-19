@@ -15,7 +15,7 @@ import redis
 
 
 client = MongoClient("mongodb://localhost:27041/")  
-MEDIA_FILES_MONGO_URI = "mongodb://localhost:27051" 
+MEDIA_FILES_MONGO_URI = "mongodb://localhost:27041" 
 media_client = MongoClient(MEDIA_FILES_MONGO_URI)
 db = client["readersDb"] 
 media_db = media_client["readersDb"]  
@@ -275,11 +275,24 @@ def add_article():
         
         # Handle file uploads (text, image, video)
         text = request.files.get("text")
-        if text:
+        text_filename = None
+        if text and text.filename:
             text_filename = secure_filename(text.filename)
             text.save(os.path.join(app.config['UPLOAD_FOLDER'], text_filename))
-        else:
-            text_filename = None
+
+        image = request.files.get("image")
+        image_filename = ""
+        if image and image.filename:
+            safe_img_name = secure_filename(image.filename)
+            fs.put(image, filename=safe_img_name, content_type=image.content_type)
+            image_filename = safe_img_name
+
+        video = request.files.get("video")
+        video_filename = ""
+        if video and video.filename:
+            safe_vid_name = secure_filename(video.filename)
+            fs.put(video, filename=safe_vid_name, content_type=video.content_type)
+            video_filename = safe_vid_name
 
         article_data = {
             "title": title,
@@ -290,8 +303,8 @@ def add_article():
             "language": language,
             "timestamp": str(int(datetime.utcnow().timestamp() * 1000)),
             "text": text_filename,
-            "image": "",
-            "video": "",
+            "image": image_filename, 
+            "video": video_filename,
         }
         
         articles_collection.insert_one(article_data)
