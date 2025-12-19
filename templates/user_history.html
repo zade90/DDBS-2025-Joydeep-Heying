@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="panel">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2>Reading History: {{ user.name if user else 'Unknown User' }}</h2>
+        <a href="/users/" class="btn">Back to Users</a>
+    </div>
+
+    {% if history %}
+    <table class="table" style="width: 100%; border-collapse: collapse;">
+        <thead>
+            <tr style="text-align: left; border-bottom: 1px solid #333;">
+                <th style="padding: 10px;">Date</th>
+                <th style="padding: 10px;">Category</th>
+                <th style="padding: 10px;">Article Title</th>
+                <th style="padding: 10px;">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for record in history %}
+            <tr style="border-bottom: 1px solid #1a2634;">
+                <td style="padding: 10px; color: #888;">{{ record.date_str }}</td>
+                <td style="padding: 10px;">
+                    <span style="background: #2a3b55; padding: 2px 8px; border-radius: 4px; font-size: 0.85rem;">
+                        {{ record.category }}
+                    </span>
+                </td>
+                <td style="padding: 10px; font-weight: 500;">{{ record.title }}</td>
+                <td style="padding: 10px;">
+                    <a href="/articles/{{ record.aid | replace('a', '') }}/" class="btn" style="font-size: 0.8rem; padding: 4px 8px;">View</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <p style="color: #888; text-align: center; padding: 20px;">No reading history found for this user.</p>
+    {% endif %}
+</div>
+{% endblock %}

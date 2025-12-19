@@ -28,6 +28,8 @@
                 <a href="/users/" class="{% if request.path.startswith('/users') %}active{% endif %}">Users</a>
                 <a href="/articles/" class="{% if request.path.startswith('/articles') %}active{% endif %}">Articles</a>
                 <a href="/poprank/" class="{% if request.path.startswith('/poprank') %}active{% endif %}">PopRank</a>
+                <a href="/search/advanced/" class="{% if request.path.startswith('/search') %}active{% endif %}" style="color: #4CAF50;">🔍 Advanced Search</a>
+                <a href="/monitor/" class="{% if request.path.startswith('/monitor') %}active{% endif %}" style="color: #e74c3c;">📈 Monitor</a>
             </nav>
         </div>
     </header>

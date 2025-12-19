@@ -22,6 +22,7 @@ media_db = media_client["readersDb"]
 users_collection = db["users"] 
 articles_collection = db["articles"] 
 pop_ranks_collection = db["pop_ranks"]
+reads_collection = db["reads"]
 fs = gridfs.GridFS(media_db)
 redis_client = redis.StrictRedis(host="localhost", port=6379, db=0)
 # Initialize Flask app
@@ -418,5 +419,135 @@ def article_detail(article_id):
     return render_template("article_detail.html", article=article)
 
 
+@app.route("/users/<uid>/history/")
+def user_history(uid):
+    user = users_collection.find_one({"uid": uid})
+    
+    pipeline = [
+        {"$match": {"uid": uid}},
+        {"$sort": {"timestamp": -1}},
+        {"$limit": 50},
+        {
+            "$lookup": {
+                "from": "articles",
+                "localField": "aid",
+                "foreignField": "aid",
+                "as": "article_details"
+            }
+        },
+        {"$unwind": "$article_details"},
+        {
+            "$project": {
+                "timestamp": 1,
+                "aid": 1,
+                "readTimeLength": 1,
+                "title": "$article_details.title",
+                "category": "$article_details.category",
+                "image": "$article_details.image"
+            }
+        }
+    ]
+    
+    history_records = list(reads_collection.aggregate(pipeline))
+    
+    for record in history_records:
+        try:
+            ts = int(record.get("timestamp"))
+            record["date_str"] = datetime.utcfromtimestamp(ts / 1000).strftime('%Y-%m-%d %H:%M')
+        except:
+            record["date_str"] = "Unknown"
+
+    return render_template("user_history.html", user=user, history=history_records)
+
+
+
+@app.route("/search/advanced/", methods=["GET", "POST"])
+def advanced_search():
+    results = []
+    query_params = {}
+    
+    if request.method == "POST":
+        category = request.form.get("category")
+        keyword = request.form.get("keyword")
+        date_start = request.form.get("date_start")
+        
+        query_filter = {}
+        
+        if category and category != "All":
+            query_filter["category"] = category
+            query_params["category"] = category
+
+        if keyword:
+            query_filter["title"] = {"$regex": keyword, "$options": "i"}
+            query_params["keyword"] = keyword
+
+        if date_start:
+            try:
+                dt_obj = datetime.strptime(date_start, "%Y-%m-%d")
+                ts_ms = str(int(dt_obj.timestamp() * 1000))
+                query_filter["timestamp"] = {"$gte": ts_ms}
+                query_params["date_start"] = date_start
+            except ValueError:
+                pass
+
+        results = list(articles_collection.find(query_filter).limit(20))
+        
+        for article in results:
+            image_filename = article.get("image", "").split(",")[0]
+            if image_filename:
+                article["image_url"] = f"/files/{image_filename}"
+
+            ts = int(article.get("timestamp", 0))
+            if ts:
+                article["date_display"] = datetime.utcfromtimestamp(ts / 1000).strftime('%Y-%m-%d')
+
+    return render_template("advanced_search.html", results=results, params=query_params)
+
+
+@app.route("/monitor/")
+def monitor_page():
+    return render_template("monitor.html")
+
+@app.route("/api/monitor/stats")
+def get_monitor_stats():
+    """
+    API: 获取实时集群状态和分片分布数据
+    """
+    try:
+        server_status = client.admin.command("serverStatus")
+        
+        ops = server_status.get('opcounters', {})
+        mem = server_status.get('mem', {})
+        conns = server_status.get('connections', {})
+        
+        shards_info = {}
+        
+        target_collections = ['articles', 'pop_ranks']
+        
+        for col_name in target_collections:
+            try:
+                stats = db.command("collStats", col_name)
+                if stats.get('sharded'):
+                    shards_info[col_name] = {}
+                    for shard_name, shard_data in stats['shards'].items():
+                        shards_info[col_name][shard_name] = shard_data.get('count', 0)
+            except Exception:
+                shards_info[col_name] = {"Error": 0}
+
+        return jsonify({
+            "timestamp": datetime.now().strftime('%H:%M:%S'),
+            "opcounters": ops,
+            "memory": {
+                "resident": mem.get('resident', 0), # MB
+                "virtual": mem.get('virtual', 0)
+            },
+            "connections": conns.get('current', 0),
+            "distribution": shards_info
+        })
+        
+    except Exception as e:
+        print(f"Monitor Error: {e}")
+        return jsonify({"error": str(e)}), 500
+    
 if __name__ == "__main__":
     app.run(debug=True)

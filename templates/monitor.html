@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<div class="panel">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div>
+            <h2 style="margin: 0;">DBMS Cluster Monitor</h2>
+            <p style="color: #888; margin: 5px 0 0;">Real-time Status • Sharding Strategy Verification</p>
+        </div>
+        <div style="text-align: right;">
+            <div id="status-indicator" style="color: #4CAF50; font-weight: bold;">● System Online</div>
+            <small style="color: #666;" id="last-update">Updating...</small>
+        </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px;">
+        <div class="metric-card">
+            <h3>Active Connections</h3>
+            <div class="value" id="conn-val">0</div>
+        </div>
+        <div class="metric-card">
+            <h3>Memory (Res)</h3>
+            <div class="value" id="mem-val">0 <small>MB</small></div>
+        </div>
+        <div class="metric-card" style="border-color: #9b59b6;">
+            <h3>Total Inserts</h3>
+            <div class="value" id="insert-val">0</div>
+        </div>
+        <div class="metric-card" style="border-color: #e67e22;">
+            <h3>Total Queries</h3>
+            <div class="value" id="query-val">0</div>
+        </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px;">
+        
+        <div class="chart-container">
+            <h3>⚡ Live Workload (Ops/sec)</h3>
+            <canvas id="workloadChart"></canvas>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+            <div class="chart-container" style="flex: 1;">
+                <h3>📚 Articles Distribution</h3>
+                <p style="font-size: 0.8rem; color: #888; margin-bottom: 10px;">Shard1 (Science) vs Shard2 (Tech)</p>
+                <canvas id="shardArticleChart"></canvas>
+            </div>
+            
+            <div class="chart-container" style="flex: 1;">
+                <h3>🏆 PopRank Distribution</h3>
+                <p style="font-size: 0.8rem; color: #888; margin-bottom: 10px;">Shard1 (Daily) vs Shard2 (Wk/Mth)</p>
+                <canvas id="shardRankChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .metric-card {
+        background: #16202e;
+        padding: 20px;
+        border-radius: 12px;
+        border-left: 4px solid #4CAF50;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .metric-card h3 { margin: 0 0 10px; font-size: 0.9rem; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+    .metric-card .value { font-size: 1.8rem; font-weight: 600; color: #fff; }
+    
+    .chart-container {
+        background: #16202e;
+        padding: 20px;
+        border-radius: 12px;
+        border: 1px solid #2a3b55;
+        position: relative;
+    }
+    .chart-container h3 { margin-top: 0; }
+</style>
+
+<script>
+    const ctxWorkload = document.getElementById('workloadChart').getContext('2d');
+    const workloadChart = new Chart(ctxWorkload, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                { label: 'Query', borderColor: '#3498db', data: [], tension: 0.4 },
+                { label: 'Insert', borderColor: '#9b59b6', data: [], tension: 0.4 },
+                { label: 'Update', borderColor: '#f1c40f', data: [], tension: 0.4 }
+            ]
+        },
+        options: {
+            responsive: true,
+            interaction: { intersect: false },
+            scales: { x: { display: false }, y: { beginAtZero: true, grid: { color: '#2a3b55' } } },
+            plugins: { legend: { labels: { color: '#ccc' } } }
+        }
+    });
+
+    const ctxShardArt = document.getElementById('shardArticleChart').getContext('2d');
+    const shardArtChart = new Chart(ctxShardArt, {
+        type: 'bar',
+        data: {
+            labels: ['Shard1 (Sci)', 'Shard2 (Tech)'],
+            datasets: [{
+                label: 'Documents',
+                data: [0, 0],
+                backgroundColor: ['#4CAF50', '#E91E63']
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            plugins: { legend: { display: false } },
+            scales: { x: { grid: { color: '#2a3b55' } } }
+        }
+    });
+
+    const ctxShardRank = document.getElementById('shardRankChart').getContext('2d');
+    const shardRankChart = new Chart(ctxShardRank, {
+        type: 'bar',
+        data: {
+            labels: ['Shard1 (Daily)', 'Shard2 (Wk/Mo)'],
+            datasets: [{
+                label: 'Documents',
+                data: [0, 0],
+                backgroundColor: ['#FFC107', '#03A9F4']
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            plugins: { legend: { display: false } },
+            scales: { x: { grid: { color: '#2a3b55' } } }
+        }
+    });
+
+    let prevOps = null;
+
+    async function fetchStats() {
+        try {
+            const response = await fetch('/api/monitor/stats');
+            const data = await response.json();
+
+            document.getElementById('conn-val').innerText = data.connections;
+            document.getElementById('mem-val').innerHTML = `${data.memory.resident} <small>MB</small>`;
+            document.getElementById('insert-val').innerText = data.opcounters.insert.toLocaleString();
+            document.getElementById('query-val').innerText = data.opcounters.query.toLocaleString();
+            document.getElementById('last-update').innerText = `Updated: ${data.timestamp}`;
+
+            if (prevOps) {
+                const interval = 2; 
+                const queryRate = (data.opcounters.query - prevOps.query) / interval;
+                const insertRate = (data.opcounters.insert - prevOps.insert) / interval;
+                const updateRate = (data.opcounters.update - prevOps.update) / interval;
+
+                if (workloadChart.data.labels.length > 20) {
+                    workloadChart.data.labels.shift();
+                    workloadChart.data.datasets.forEach(ds => ds.data.shift());
+                }
+                workloadChart.data.labels.push(data.timestamp);
+                workloadChart.data.datasets[0].data.push(queryRate);
+                workloadChart.data.datasets[1].data.push(insertRate);
+                workloadChart.data.datasets[2].data.push(updateRate);
+                workloadChart.update('none'); // 'none' for smooth animation
+            }
+            prevOps = data.opcounters;
+
+            const artDist = data.distribution.articles || {};
+            shardArtChart.data.datasets[0].data = [
+                artDist['shard1ReplSet'] || 0, 
+                artDist['shard2ReplSet'] || 0
+            ];
+            shardArtChart.update();
+
+            // Handle PopRanks
+            const rankDist = data.distribution.pop_ranks || {};
+            shardRankChart.data.datasets[0].data = [
+                rankDist['shard1ReplSet'] || 0, 
+                rankDist['shard2ReplSet'] || 0
+            ];
+            shardRankChart.update();
+
+        } catch (error) {
+            console.error("Monitor fetch error:", error);
+            document.getElementById('status-indicator').innerText = "● Connection Lost";
+            document.getElementById('status-indicator').style.color = "red";
+        }
+    }
+
+    // Run every 2 seconds
+    setInterval(fetchStats, 2000);
+    fetchStats();
+</script>
+{% endblock %}

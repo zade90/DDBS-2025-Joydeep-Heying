@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="panel">
+    <h2>Advanced Article Search</h2>
+    <p style="margin-bottom: 20px; color: #888;">Construct complex queries dynamically.</p>
+
+    <form method="POST" action="/search/advanced/" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px; background: #0f1824; padding: 20px; border-radius: 8px;">
+        
+        <div>
+            <label style="display: block; margin-bottom: 5px;">Keyword (Title)</label>
+            <input type="text" name="keyword" value="{{ params.keyword }}" placeholder="e.g. Quantum" style="width: 100%; padding: 8px; background: #1a2634; border: 1px solid #2a3b55; color: white; border-radius: 4px;">
+        </div>
+
+        <div>
+            <label style="display: block; margin-bottom: 5px;">Category</label>
+            <select name="category" style="width: 100%; padding: 8px; background: #1a2634; border: 1px solid #2a3b55; color: white; border-radius: 4px;">
+                <option value="All">All Categories</option>
+                <option value="science" {% if params.category == 'science' %}selected{% endif %}>Science</option>
+                <option value="technology" {% if params.category == 'technology' %}selected{% endif %}>Technology</option>
+            </select>
+        </div>
+
+        <div>
+            <label style="display: block; margin-bottom: 5px;">Published After</label>
+            <input type="date" name="date_start" value="{{ params.date_start }}" style="width: 100%; padding: 8px; background: #1a2634; border: 1px solid #2a3b55; color: white; border-radius: 4px;">
+        </div>
+
+        <div style="display: flex; align-items: end;">
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Run Query</button>
+        </div>
+    </form>
+
+    {% if results %}
+        <h3>Results ({{ results|length }})</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; margin-top: 20px;">
+            {% for article in results %}
+            <div class="card" style="background: #16202e; border-radius: 8px; overflow: hidden; border: 1px solid #2a3b55;">
+                {% if article.image_url %}
+                <div style="height: 120px; background-image: url('{{ article.image_url }}'); background-size: cover; background-position: center;"></div>
+                {% else %}
+                <div style="height: 120px; background: #2a3b55; display: flex; align-items: center; justify-content: center; color: #556;">No Image</div>
+                {% endif %}
+                
+                <div style="padding: 15px;">
+                    <div style="font-size: 0.75rem; color: #4CAF50; margin-bottom: 5px; text-transform: uppercase;">{{ article.category }}</div>
+                    <h4 style="margin: 0 0 10px; font-size: 1rem;">{{ article.title }}</h4>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+                        <small style="color: #888;">{{ article.date_display }}</small>
+                        <a href="/articles/{{ article._id }}/" class="btn" style="padding: 4px 10px; font-size: 0.8rem;">Read</a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% elif request.method == 'POST' %}
+        <p>No articles found matching your criteria.</p>
+    {% endif %}
+</div>
+{% endblock %}
