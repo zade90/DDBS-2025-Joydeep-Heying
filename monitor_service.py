@@ -3,11 +3,9 @@ import time
 import os
 from datetime import datetime
 
-# 配置连接
 MONGO_URI = 'mongodb://localhost:27041'
 DB_NAME = 'readersDb'
 
-# 定义分片的预期角色（基于你的配置文件）
 SHARD_ROLES = {
     "shard1ReplSet": "Science / Daily",
     "shard2ReplSet": "Technology / Weekly&Monthly"
@@ -31,7 +29,7 @@ class ClusterMonitor:
             return None, None, None
 
     def get_collection_distribution(self, collection_name):
-        """核心功能：获取集合在各个分片上的分布情况"""
+        """获取集合在各个分片上的分布"""
         try:
             stats = self.db.command("collStats", collection_name)
             
@@ -54,14 +52,12 @@ class ClusterMonitor:
         print(f"DBMS CLUSTER MONITOR - {datetime.now().strftime('%H:%M:%S')}")
         print("="*60)
 
-        # 1. 显示工作负载 (Workload / Throughput)
         print(f"\n[1] Real-time Workload (Ops/sec)")
         print("-" * 60)
         if prev_ops and current_ops:
             headers = ["Insert", "Query", "Update", "Delete", "Command"]
             row = []
             for k in ['insert', 'query', 'update', 'delete', 'command']:
-                # 计算差值除以时间间隔
                 rate = (current_ops.get(k, 0) - prev_ops.get(k, 0)) / interval
                 row.append(f"{rate:>8.1f}")
             
@@ -70,7 +66,6 @@ class ClusterMonitor:
         else:
             print("Calculating throughput...")
 
-        # 2. 显示数据分布验证 (Sharding Strategy Verification)
         print(f"\n[2] Data Distribution & Sharding Strategy Proof")
         print("-" * 60)
         print(f"{'Collection':<15} | {'Shard Name':<15} | {'Role (Strategy)':<25} | {'Docs':<8} | {'Size (KB)':<10}")

@@ -5,6 +5,9 @@ from datetime import datetime
 from werkzeug.utils import secure_filename
 from pydantic import BaseModel
 import os
+import subprocess
+import threading
+import time
 import gridfs
 from flask import Flask, render_template, send_file, Response
 from pymongo import MongoClient
@@ -13,7 +16,7 @@ from bson.objectid import ObjectId
 from io import BytesIO
 import redis
 
-
+os.environ["FAST_REMOVE"] = "1"
 client = MongoClient("mongodb://localhost:27041/")  
 MEDIA_FILES_MONGO_URI = "mongodb://localhost:27041" 
 media_client = MongoClient(MEDIA_FILES_MONGO_URI)
@@ -25,11 +28,74 @@ pop_ranks_collection = db["pop_ranks"]
 reads_collection = db["reads"]
 fs = gridfs.GridFS(media_db)
 redis_client = redis.StrictRedis(host="localhost", port=6379, db=0)
-# Initialize Flask app
 app = Flask(__name__)
 
-# Set up folder for file uploads (optional, for handling images and videos)
 app.config['UPLOAD_FOLDER'] = 'uploads'
+
+ACTION_STATE = {}
+ACTION_LOCK = threading.Lock()
+
+def _update_action(name, payload):
+    with ACTION_LOCK:
+        ACTION_STATE[name] = {**ACTION_STATE.get(name, {}), **payload}
+
+def _run_script_action(name, script_path, env=None):
+    _update_action(name, {
+        "status": "running",
+        "started_at": datetime.now().isoformat(),
+        "finished_at": None,
+        "output": ""
+    })
+    try:
+        process = subprocess.Popen(
+            [script_path],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+            env=env
+        )
+        output_lines = []
+        while True:
+            line = process.stdout.readline()
+            if not line and process.poll() is not None:
+                break
+            if line:
+                output_lines.append(line.rstrip())
+                output_lines = output_lines[-200:]
+                _update_action(name, {
+                    "status": "running",
+                    "output": "\n".join(output_lines)
+                })
+        return_code = process.wait()
+        final_output = "\n".join(output_lines).strip()
+        if return_code == 0:
+            _update_action(name, {
+                "status": "success",
+                "finished_at": datetime.now().isoformat(),
+                "output": final_output
+            })
+        else:
+            _update_action(name, {
+                "status": "error",
+                "finished_at": datetime.now().isoformat(),
+                "output": final_output or f"Exit code {return_code}"
+            })
+    except Exception as exc:
+        _update_action(name, {
+            "status": "error",
+            "finished_at": datetime.now().isoformat(),
+            "output": str(exc)
+        })
+
+def _start_action(name, script_path, env=None):
+    with ACTION_LOCK:
+        state = ACTION_STATE.get(name, {})
+        if state.get("status") == "running":
+            return False
+    thread = threading.Thread(target=_run_script_action, args=(name, script_path, env), daemon=True)
+    thread.start()
+    return True
 
 
 class User(BaseModel):
@@ -54,10 +120,22 @@ def home():
 
 @app.route("/users/")
 def users_page():
-    users = list(users_collection.find())
+    page = max(int(request.args.get('page', 1)), 1)
+    per_page = 12
+    total_users = users_collection.count_documents({})
+    total_pages = max((total_users + per_page - 1) // per_page, 1)
+    if page > total_pages:
+        page = total_pages
+
+    users = list(
+        users_collection.find()
+        .sort("timestamp", -1)
+        .skip((page - 1) * per_page)
+        .limit(per_page)
+    )
     for user in users:
-        user["_id"] = str(user["_id"])  # Convert ObjectId to string for JSON serialization
-    return render_template("users.html", users=users)
+        user["_id"] = str(user["_id"])
+    return render_template("users.html", users=users, page=page, total_pages=total_pages)
 
 
 @app.route("/users/edit/<user_id>/", methods=["GET", "POST"])
@@ -66,7 +144,6 @@ def edit_user(user_id):
     if not user:
         return "User not found", 404
 
-    # If it's a POST request, update the user data
     if request.method == "POST":
         updated_data = {
             "name": request.form.get("name"),
@@ -82,83 +159,86 @@ def edit_user(user_id):
             "obtainedCredits": request.form.get("obtainedCredits")
         }
 
-        # Update the user in the database
         users_collection.update_one({"_id": ObjectId(user_id)}, {"$set": updated_data})
 
-        # Redirect after POST to avoid re-submitting the form on refresh
         return redirect(url_for('users_page'))
 
-    # If it's a GET request, render the form with the current user data
     return render_template("edit_user.html", user=user)
 
 @app.route("/articles/")
 def articles_page():
-    search_query = request.args.get('search', '').strip()  # Default to empty string if no query
+    search_query = request.args.get('search', '').strip()
+    page = max(int(request.args.get('page', 1)), 1)
+    per_page = 9
     query_filter = {}
     if search_query:
-        query_filter["title"] = search_query  # Perform exact match search for title
+        query_filter["title"] = search_query
 
-    if search_query:
-        articles = list(db.articles.find(query_filter))
-    else:
-        articles = list(db.articles.find().limit(30))  # Adjust the limit as needed
+    total_articles = articles_collection.count_documents(query_filter)
+    total_pages = max((total_articles + per_page - 1) // per_page, 1)
+    if page > total_pages:
+        page = total_pages
+
+    articles = list(
+        articles_collection.find(query_filter)
+        .sort("timestamp", -1)
+        .skip((page - 1) * per_page)
+        .limit(per_page)
+    )
 
     for article in articles:
         image_filename = article.get("image")
-        image_filename = image_filename.split(",")[0]  # Assuming the image field is a comma-separated list
+        image_filename = image_filename.split(",")[0] if image_filename else ""
         if image_filename:
             article["image_url"] = f"/files/{image_filename}"
         else:
-            article["image_url"] = None  # Default to None if no image is found
+            article["image_url"] = None
 
-    return render_template("articles.html", articles=articles, search_query=search_query)
+    return render_template(
+        "articles.html",
+        articles=articles,
+        search_query=search_query,
+        page=page,
+        total_pages=total_pages
+    )
 
 def format_timestamp(timestamp_ms):
-    # Convert from milliseconds to seconds
-    timestamp = datetime.utcfromtimestamp(timestamp_ms / 1000)  # Convert to seconds
-    return timestamp.strftime('%B %d, %Y, %I:%M %p')  # Format: January 01, 2024, 12:00 PM
+    timestamp = datetime.utcfromtimestamp(timestamp_ms / 1000)
+    return timestamp.strftime('%B %d, %Y, %I:%M %p')
 
 @app.route("/poprank/", methods=["GET", "POST"])
 def poprank_page():
-    # Handle form submission (for granularity)
     if request.method == "POST":
         granularity = request.form.get("granularity")
         if granularity:
-            # Fetch the available PopRank data for the selected granularity
             poprank_data = list(pop_ranks_collection.find({"temporalGranularity": granularity}))
             
-            # For each PopRank record, fetch the corresponding articles using the articleAidList
             all_articles = []
             for record in poprank_data:
                 article_ids = record.get("articleAidList", [])
                 articles = []
                 for article_id in article_ids:
-                    article_id_prefixed = f"a{article_id}"  # Prefix with "a" as required
+                    article_id_prefixed = f"a{article_id}"
                     article = articles_collection.find_one({"aid": article_id_prefixed})
                     if article:
-                        articles.append(article)  # Add the article to the list
-                
-                # Convert the timestamp to a human-readable date format
+                        articles.append(article)
+
                 formatted_date = format_timestamp(record.get("timestamp"))
 
                 all_articles.append({
-                    "timestamp": formatted_date,  # Use the formatted date here
+                    "timestamp": formatted_date,
                     "articles": articles,
-                    "timestamp_ms": record.get("timestamp")  # Store the timestamp in milliseconds
+                    "timestamp_ms": record.get("timestamp")
                 })
             
             return render_template("poprank_display.html", granularity=granularity, all_articles=all_articles)
     
-    # If it's a GET request, show the form to choose granularity
     return render_template("poprank_select_granularity.html")
 
-# Route to display ranking for a specific granularity and timestamp
 @app.route("/poprank/<granularity>/<timestamp>/")
 def poprank_ranking(granularity, timestamp):
-    # Convert timestamp string to integer
     timestamp_ms = int(timestamp)
     print(timestamp_ms)
-    # Fetch the PopRank record for the given granularity and timestamp
     record = pop_ranks_collection.find_one({
         "temporalGranularity": granularity,
         "timestamp": timestamp_ms
@@ -167,27 +247,23 @@ def poprank_ranking(granularity, timestamp):
     if not record:
         return "PopRank record not found", 404
     
-    # Fetch articles using articleAidList
     article_ids = record.get("articleAidList", [])
     articles = []
     for article_id in article_ids:
-        article_id_prefixed = f"a{article_id}"  # Prefix with "a" as required
+        article_id_prefixed = f"a{article_id}"
         article = articles_collection.find_one({"id": article_id_prefixed})
         if article:
             articles.append(article)
     
-    # Convert timestamp to human-readable format
     formatted_date = format_timestamp(record.get("timestamp"))
 
     return render_template("poprank_ranking.html", granularity=granularity, timestamp=formatted_date, articles=articles)
 
-    # If it's a GET request, show the form to choose granularity
     return render_template("poprank_select_granularity.html")
-# Route to add a new user
+
 @app.route("/users/add/", methods=["GET", "POST"])
 def add_user():
     if request.method == "POST":
-        # Get data from the form
         name = request.form.get("name")
         email = request.form.get("email")
         phone = request.form.get("phone")
@@ -200,12 +276,10 @@ def add_user():
         preferTags = request.form.get("preferTags")
         obtainedCredits = request.form.get("obtainedCredits")
         
-        # Generate a new user id and timestamp
-        user_id = f"u{str(int(datetime.utcnow().timestamp()))[-4:]}"  # Generate a simple user ID (u1234)
-        timestamp = str(int(datetime.utcnow().timestamp() * 1000))  # Current timestamp in milliseconds
-        uid = str(int(datetime.utcnow().timestamp() * 1000))  # Use timestamp as uid for simplicity
+        user_id = f"u{str(int(datetime.utcnow().timestamp()))[-4:]}"
+        timestamp = str(int(datetime.utcnow().timestamp() * 1000))
+        uid = str(int(datetime.utcnow().timestamp() * 1000))
         
-        # Create the user data
         user_data = {
             "id": user_id,
             "uid": uid,
@@ -223,10 +297,8 @@ def add_user():
             "timestamp": timestamp
         }
 
-        # Insert into the database
         users_collection.insert_one(user_data)
 
-        # Redirect back to the users page
         return redirect(url_for('users_page'))
 
     return render_template("add_user.html")
@@ -238,17 +310,14 @@ def delete_user(user_id):
 
 @app.route('/files/<filename>')
 def serve_file(filename):
-    # Fetch file metadata from fs.files collection
     file = media_db.fs.files.find_one({"filename": filename})
     
     if not file:
         return "File not found", 404
     
-    # Fetch the file data from fs.chunks collection
     file_id = file['_id']
     grid_out = fs.get(file_id)
     
-    # Determine content type
     ext = filename.split('.')[-1].lower()
     content_type = {
         "jpg": "image/jpeg",
@@ -259,7 +328,6 @@ def serve_file(filename):
         "txt": "text/plain",
     }.get(ext, "application/octet-stream")
     
-    # Return the file as a streaming response
     return Response(grid_out, content_type=content_type)
 
 
@@ -273,7 +341,7 @@ def add_article():
         authors = request.form.get("authors")
         language = request.form.get("language")
         
-        # Handle file uploads (text, image, video)
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
         text = request.files.get("text")
         text_filename = None
         if text and text.filename:
@@ -308,9 +376,10 @@ def add_article():
         }
         
         articles_collection.insert_one(article_data)
-        return redirect(url_for('articles_page'))
+        return redirect(url_for('add_article', status='success'))
 
-    return render_template("add_article.html")
+    status = request.args.get('status', '')
+    return render_template("add_article.html", status=status)
 
 @app.route("/articles/edit/<article_id>/", methods=["GET", "POST"])
 def edit_article(article_id):
@@ -326,7 +395,6 @@ def edit_article(article_id):
         authors = request.form.get("authors")
         language = request.form.get("language")
         
-        # Handle file uploads (text, image, video)
         text = request.files.get("text")
         if text:
             text_filename = secure_filename(text.filename)
@@ -337,7 +405,6 @@ def edit_article(article_id):
         existing_images = article.get("image", "")
         video_filename = article.get("video", None)
 
-        # Update article data
         updated_data = {
             "title": title,
             "category": category,
@@ -362,16 +429,13 @@ from datetime import datetime
 
 @app.route("/articles/delete/<article_id>/", methods=["POST"])
 def delete_article(article_id):
-    # Find the article by ID
     article = articles_collection.find_one({"_id": ObjectId(article_id)})
     
     if not article:
         return "Article not found", 404
 
-    # Delete the article
     articles_collection.delete_one({"_id": ObjectId(article_id)})
 
-    # Redirect to the articles list page after deletion
     return redirect(url_for('articles_page'))
 
 
@@ -381,53 +445,49 @@ def article_detail(article_id):
     if not article:
         return "Article not found", 404
     
-    # Convert ObjectId to string for JSON serialization
     article["_id"] = str(article["_id"])
 
-    # Convert timestamp to a human-readable format
     timestamp_ms = int(article.get("timestamp", 0))
     if timestamp_ms:
-        timestamp = datetime.utcfromtimestamp(timestamp_ms / 1000)  # Convert to seconds
-        article["human_readable_timestamp"] = timestamp.strftime('%B %d, %Y, %I:%M %p')  # Format: January 01, 2024, 12:00 PM
+        timestamp = datetime.utcfromtimestamp(timestamp_ms / 1000)
+        article["human_readable_timestamp"] = timestamp.strftime('%B %d, %Y, %I:%M %p')
     else:
         article["human_readable_timestamp"] = "Date not available"
     
-    # Add image URLs and other assets
-    image_filenames_list = article.get("image", "").split(",")[0:-1]  # Split by comma for multiple images
-    image_urls = []  # List to store URLs of images
+    image_filenames_list = article.get("image", "").split(",")[0:-1]
+    image_urls = []
     
     for image_filename in image_filenames_list:
         if image_filename:
             image_file = fs.find_one({"filename": image_filename})
             if image_file:
-                image_urls.append(f"/files/{image_filename}")  # Add URL to list
+                image_urls.append(f"/files/{image_filename}")
             else:
-                image_urls.append(None)  # If image not found, append None
+                image_urls.append(None)
         else:
-            image_urls.append(None)  # If no image filename in list, append None
+            image_urls.append(None)
     
-    article["image_urls"] = image_urls  # Store the list of image URLs
+    article["image_urls"] = image_urls
 
-    # Fetch article text from GridFS if it's stored there
-    text_filename = article.get("text")  # Assuming 'text' field stores filename in GridFS
+    text_filename = article.get("text")
     if text_filename:
         text_file = fs.find_one({"filename": text_filename})
         if text_file:
-            article["content"] = text_file.read().decode('utf-8')  # Read text and decode
+            article["content"] = text_file.read().decode('utf-8')
         else:
             article["content"] = "Content not found."
     else:
-        article["content"] = "No text content available."  # If no text field
+        article["content"] = "No text content available."
 
-    video_filename = article.get("video")  # Assuming 'video' field stores filename in GridFS
+    video_filename = article.get("video")
     if video_filename:
         video_file = fs.find_one({"filename": video_filename})
         if video_file:
-            article["video_url"] = f"/files/{video_filename}"  # Set video URL for playback
+            article["video_url"] = f"/files/{video_filename}"
         else:
-            article["video_url"] = None  # If video not found, set to None
+            article["video_url"] = None
     else:
-        article["video_url"] = None  # If no video filename, set to None
+        article["video_url"] = None
 
     return render_template("article_detail.html", article=article)
 
@@ -523,9 +583,6 @@ def monitor_page():
 
 @app.route("/api/monitor/stats")
 def get_monitor_stats():
-    """
-    API: 获取实时集群状态和分片分布数据
-    """
     try:
         server_status = client.admin.command("serverStatus")
         
@@ -533,6 +590,32 @@ def get_monitor_stats():
         mem = server_status.get('mem', {})
         conns = server_status.get('connections', {})
         
+        shards = []
+        shard_ids = []
+        try:
+            config_shards = list(client["config"]["shards"].find({}, {"_id": 1, "host": 1}))
+            for shard in config_shards:
+                shard_id = shard.get("_id")
+                shards.append({
+                    "id": shard_id,
+                    "host": shard.get("host", "")
+                })
+                if shard_id:
+                    shard_ids.append(shard_id)
+        except Exception:
+            try:
+                list_shards = client.admin.command("listShards")
+                for shard in list_shards.get("shards", []):
+                    shard_id = shard.get("_id")
+                    shards.append({
+                        "id": shard_id,
+                        "host": shard.get("host", "")
+                    })
+                    if shard_id:
+                        shard_ids.append(shard_id)
+            except Exception:
+                pass
+
         shards_info = {}
         
         target_collections = ['articles', 'pop_ranks']
@@ -542,6 +625,8 @@ def get_monitor_stats():
                 stats = db.command("collStats", col_name)
                 if stats.get('sharded'):
                     shards_info[col_name] = {}
+                    for shard_id in shard_ids:
+                        shards_info[col_name][shard_id] = 0
                     for shard_name, shard_data in stats['shards'].items():
                         shards_info[col_name][shard_name] = shard_data.get('count', 0)
             except Exception:
@@ -551,16 +636,42 @@ def get_monitor_stats():
             "timestamp": datetime.now().strftime('%H:%M:%S'),
             "opcounters": ops,
             "memory": {
-                "resident": mem.get('resident', 0), # MB
+                "resident": mem.get('resident', 0),
                 "virtual": mem.get('virtual', 0)
             },
             "connections": conns.get('current', 0),
+            "shards": shards,
             "distribution": shards_info
         })
         
     except Exception as e:
         print(f"Monitor Error: {e}")
         return jsonify({"error": str(e)}), 500
+
+@app.route("/api/monitor/action/<action_name>", methods=["GET"])
+def get_action_status(action_name):
+    with ACTION_LOCK:
+        state = ACTION_STATE.get(action_name, {"status": "idle"})
+    return jsonify(state)
+
+@app.route("/api/monitor/action/<action_name>/start", methods=["POST"])
+def start_action(action_name):
+    scripts = {
+        "add_shard3": os.path.join(os.getcwd(), "shard3_add.sh"),
+        "migrate_shard3": os.path.join(os.getcwd(), "shard3_migrate_chunks.sh"),
+        "remove_shard3": os.path.join(os.getcwd(), "shard3_remove.sh")
+    }
+    script_path = scripts.get(action_name)
+    if not script_path or not os.path.exists(script_path):
+        return jsonify({"error": "Unknown action"}), 404
+    payload = request.get_json(silent=True) or {}
+    env = None
+    if action_name == "add_shard3" and payload.get("reset"):
+        env = os.environ.copy()
+        env["RESET_SHARD3"] = "1"
+    started = _start_action(action_name, script_path, env=env)
+    return jsonify({"started": started, "action": action_name})
     
 if __name__ == "__main__":
-    app.run(debug=True)
+    # app.run(debug=True)
+    app.run(port=6510, debug=True)

@@ -1,79 +1,82 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-
-HOSTIP=$(hostname -I | awk '{print $1}') 
-
-# Export HOSTIP to make it available for docker-compose
+HOSTIP=$(hostname -I | awk '{print $1}')
 export HOSTIP
 
-docker stop $(docker ps -aq)
-docker rm $(docker ps -aq)
-sudo rm -rf data
+stop_all_containers() {
+  docker stop $(docker ps -aq)
+}
 
+remove_all_containers() {
+  docker rm $(docker ps -aq)
+}
 
-# Create directories for data storage
-echo "Creating directories for MongoDB data..."
-mkdir -p data/config1
-mkdir -p data/config2
-mkdir -p data/config3
-mkdir -p data/shard1_replica1
-mkdir -p data/shard1_replica2
-mkdir -p data/shard2_replica1
-mkdir -p data/shard2_replica2
+init_config_rs() {
+  docker exec -it config1 mongosh --eval "rs.initiate({
+    _id: 'configReplSet',
+    configsvr: true,
+    members: [
+      { _id: 0, host: '${HOSTIP}:27019' },
+      { _id: 1, host: '${HOSTIP}:27020' },
+      { _id: 2, host: '${HOSTIP}:27021' }
+    ]
+  })"
+}
 
+init_shard_rs() {
+  local repl_set="$1"
+  local primary_port="$2"
+  local secondary_port="$3"
+  local primary_container="$4"
 
-# Start all containers
+  docker exec -it "$primary_container" mongosh --eval "rs.initiate({
+    _id: '${repl_set}',
+    members: [
+      { _id: 0, host: '${HOSTIP}:${primary_port}' },
+      { _id: 1, host: '${HOSTIP}:${secondary_port}' }
+    ]
+  })"
+}
+
+add_shards() {
+  docker exec -it mongos_router mongosh --eval "sh.addShard('shard1ReplSet/${HOSTIP}:27031,${HOSTIP}:27032')"
+  docker exec -it mongos_router mongosh --eval "sh.addShard('shard2ReplSet/${HOSTIP}:27033,${HOSTIP}:27034')"
+}
+
+reset_data_dirs() {
+  sudo rm -rf data
+  mkdir -p data/config1 data/config2 data/config3
+  mkdir -p data/shard1_replica1 data/shard1_replica2
+  mkdir -p data/shard2_replica1 data/shard2_replica2
+}
+
+echo "Stopping existing containers..."
+stop_all_containers
+remove_all_containers
+
+echo "Resetting MongoDB data directories..."
+reset_data_dirs
+
 echo "Starting MongoDB containers..."
-cd mongodb
-docker compose up -d
+docker compose -f mongodb/docker-compose.yml up -d
 
-# Wait for the containers to initialize
 echo "Waiting for containers to initialize..."
 sleep 10
 
-# Initialize Config Replica Set
-echo "Initializing Config Replica Set..."
-docker exec -it config1 mongosh --eval "rs.initiate({
-  _id: 'configReplSet',
-  configsvr: true,
-  members: [
-    { _id: 0, host: '${HOSTIP}:27019'},
-    { _id: 1, host: '${HOSTIP}:27020'},
-    { _id: 2, host: '${HOSTIP}:27021'}
-  ]
-})"
+echo "Initializing config replica set..."
+init_config_rs
 
-# Initialize Shard 1 Replica Set
-echo "Initializing Shard 1 Replica Set..."
-docker exec -it shard1_replica1 mongosh --eval "rs.initiate({
-  _id: 'shard1ReplSet',
-  members: [
-    { _id: 0, host: '${HOSTIP}:27031' },
-    { _id: 1, host: '${HOSTIP}:27032' }
-  ]
-})"
+echo "Initializing shard replica sets..."
+init_shard_rs "shard1ReplSet" "27031" "27032" "shard1_replica1"
+init_shard_rs "shard2ReplSet" "27033" "27034" "shard2_replica1"
 
-# Initialize Shard 2 Replica Set
-echo "Initializing Shard 2 Replica Set..."
-docker exec -it shard2_replica1 mongosh --eval "rs.initiate({
-  _id: 'shard2ReplSet',
-  members: [
-    { _id: 0, host: '${HOSTIP}:27033' },
-    { _id: 1, host: '${HOSTIP}:27034' }
-  ]
-})"
-
-# Wait for replica sets to stabilize
 echo "Waiting for replica sets to stabilize..."
 sleep 20
 
-# Add Shards to the Cluster
-echo "Adding Shards to the Cluster..."
-docker exec -it mongos_router mongosh --eval "sh.addShard('shard1ReplSet/${HOSTIP}:27031,${HOSTIP}:27032')"
-docker exec -it mongos_router mongosh --eval "sh.addShard('shard2ReplSet/${HOSTIP}:27033,${HOSTIP}:27034')"
+echo "Adding shards to cluster..."
+add_shards
 
-
-echo "MongoDB Sharded Cluster is successfully set up!"
+echo "MongoDB sharded cluster is ready."
 
 docker run -d -p 6379:6379 redis/redis-stack:latest
 

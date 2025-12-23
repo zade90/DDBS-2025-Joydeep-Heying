@@ -12,61 +12,51 @@
         </div>
     </div>
 
-    <div class="panel compact">
-        <div class="table-responsive">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>UID</th>
-                        <th>Name</th>
-                        <th>Gender</th>
-                        <th>Email</th>
-                        <th>Phone</th>
-                        <th>Department</th>
-                        <th>Grade</th>
-                        <th>Language</th>
-                        <th>Region</th>
-                        <th>Role</th>
-                        <th>Preferred Tags</th>
-                        <th>Obtained Credits</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for user in users %}
-                        <tr>
-                            <td>{{ user._id }}</td>
-                            <td>{{ user.uid }}</td>
-                            <td>{{ user.name }}</td>
-                            <td>{{ user.gender }}</td>
-                            <td>{{ user.email }}</td>
-                            <td>{{ user.phone }}</td>
-                            <td>{{ user.dept }}</td>
-                            <td>{{ user.grade }}</td>
-                            <td>{{ user.language }}</td>
-                            <td>{{ user.region }}</td>
-                            <td>{{ user.role }}</td>
-                            <td>{{ user.preferTags }}</td>
-                            <td>{{ user.obtainedCredits }}</td>
-                            
-                            <td style="display: flex; gap: 5px;">
-                                <a href="{{ url_for('edit_user', user_id=user._id) }}" class="btn btn-warning btn-sm">Edit</a>
-                                
-                                <a href="/users/{{ user.uid }}/history/" 
-                                class="btn btn-sm" 
-                                style="background-color: #9b59b6; color: white; border: none;">
-                                History
-                                </a>
-
-                                <a href="{{ url_for('delete_user', user_id=user._id) }}"
-                                class="btn btn-danger btn-sm"
-                                onclick="return confirm('Are you sure you want to delete this user?');">Delete</a>
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+    <div class="user-list">
+        {% for user in users %}
+            <details class="user-card">
+                <summary class="user-summary">
+                    <div>
+                        <div class="user-name">{{ user.name }}</div>
+                        <div class="user-meta">UID {{ user.uid }} · {{ user.email }}</div>
+                    </div>
+                    <div class="user-chip">{{ user.region }}</div>
+                </summary>
+                <div class="user-details">
+                    <div class="detail-grid">
+                        <div><span>ID</span>{{ user._id }}</div>
+                        <div><span>Gender</span>{{ user.gender }}</div>
+                        <div><span>Phone</span>{{ user.phone }}</div>
+                        <div><span>Department</span>{{ user.dept }}</div>
+                        <div><span>Grade</span>{{ user.grade }}</div>
+                        <div><span>Language</span>{{ user.language }}</div>
+                        <div><span>Role</span>{{ user.role }}</div>
+                        <div><span>Preferred Tags</span>{{ user.preferTags }}</div>
+                        <div><span>Obtained Credits</span>{{ user.obtainedCredits }}</div>
+                    </div>
+                    <div class="user-actions">
+                        <a href="{{ url_for('edit_user', user_id=user._id) }}" class="btn btn-warning btn-sm">Edit</a>
+                        <a href="/users/{{ user.uid }}/history/" class="btn btn-sm user-history">History</a>
+                        <a href="{{ url_for('delete_user', user_id=user._id) }}"
+                           class="btn btn-danger btn-sm"
+                           onclick="return confirm('Are you sure you want to delete this user?');">Delete</a>
+                    </div>
+                </div>
+            </details>
+        {% endfor %}
     </div>
+
+    {% if total_pages > 1 %}
+        <div class="pagination">
+            {% set prev_page = page - 1 %}
+            {% set next_page = page + 1 %}
+            <a class="btn" href="{{ url_for('users_page', page=prev_page) }}" {% if page <= 1 %}aria-disabled="true"{% endif %}>
+                Previous
+            </a>
+            <div class="pagination-meta">Page {{ page }} of {{ total_pages }}</div>
+            <a class="btn btn-primary" href="{{ url_for('users_page', page=next_page) }}" {% if page >= total_pages %}aria-disabled="true"{% endif %}>
+                Next
+            </a>
+        </div>
+    {% endif %}
 {% endblock %}

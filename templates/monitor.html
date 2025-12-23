@@ -3,7 +3,7 @@
 {% block content %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<div class="panel">
+<div class="panel monitor-panel">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
         <div>
             <h2 style="margin: 0;">DBMS Cluster Monitor</h2>
@@ -32,32 +32,66 @@
             <h3>Total Queries</h3>
             <div class="value" id="query-val">0</div>
         </div>
+        <div class="metric-card" style="border-color: #03A9F4;">
+            <h3>Registered Shards</h3>
+            <div class="value" id="shard-count">0</div>
+        </div>
     </div>
 
-    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px;">
-        
-        <div class="chart-container">
-            <h3>⚡ Live Workload (Ops/sec)</h3>
-            <canvas id="workloadChart"></canvas>
+    <div class="monitor-grid">
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+            <div class="chart-container">
+                <h3>⚡ Live Workload (Ops/sec)</h3>
+                <canvas id="workloadChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>🧪 Shard3 Demo</h3>
+                <p style="font-size: 0.8rem; color: #888; margin-bottom: 10px;">Add shard3, move chunks, then remove shard3</p>
+                <div id="shard-actions">
+                    <button id="btn-add" class="action-btn">Add Shard3</button>
+                    <button id="btn-migrate" class="action-btn">Move Chunks → Shard3</button>
+                    <button id="btn-remove" class="action-btn danger">Remove Shard3</button>
+                </div>
+                <div id="action-status" class="action-status">Idle</div>
+                <pre id="action-log" class="action-log"></pre>
+            </div>
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 20px;">
+            <div class="chart-container">
+                <h3>🧭 Shard Registry</h3>
+                <p style="font-size: 0.8rem; color: #888; margin-bottom: 10px;">Live view of registered shards</p>
+                <ul id="shard-list"></ul>
+            </div>
             <div class="chart-container" style="flex: 1;">
                 <h3>📚 Articles Distribution</h3>
-                <p style="font-size: 0.8rem; color: #888; margin-bottom: 10px;">Shard1 (Science) vs Shard2 (Tech)</p>
+                <p style="font-size: 0.8rem; color: #888; margin-bottom: 10px;">Counts per shard</p>
                 <canvas id="shardArticleChart"></canvas>
             </div>
             
             <div class="chart-container" style="flex: 1;">
                 <h3>🏆 PopRank Distribution</h3>
-                <p style="font-size: 0.8rem; color: #888; margin-bottom: 10px;">Shard1 (Daily) vs Shard2 (Wk/Mth)</p>
+                <p style="font-size: 0.8rem; color: #888; margin-bottom: 10px;">Counts per shard</p>
                 <canvas id="shardRankChart"></canvas>
             </div>
         </div>
     </div>
+
 </div>
 
 <style>
+    .container {
+        max-width: 1400px;
+        padding: 32px 36px;
+    }
+    .monitor-panel {
+        width: 100%;
+    }
+    .monitor-grid {
+        display: grid;
+        grid-template-columns: minmax(320px, 1.35fr) minmax(280px, 1fr);
+        gap: 20px;
+    }
     .metric-card {
         background: #16202e;
         padding: 20px;
@@ -76,6 +110,115 @@
         position: relative;
     }
     .chart-container h3 { margin-top: 0; }
+    #shard-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: grid;
+        gap: 8px;
+        font-size: 0.9rem;
+        color: #cbd5e1;
+    }
+    #shard-list li {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 6px 10px;
+        border-radius: 8px;
+        background: #111826;
+        border: 1px solid #2a3b55;
+    }
+    #shard-list span { color: #7dd3fc; }
+    #shard-actions {
+        display: grid;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+    .action-btn {
+        background: #1f2937;
+        color: #e2e8f0;
+        border: 1px solid #334155;
+        border-radius: 8px;
+        padding: 10px 12px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    .action-btn:hover { background: #111827; }
+    .action-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+    .action-btn.danger {
+        border-color: #ef4444;
+        color: #fecaca;
+    }
+    .action-status {
+        font-size: 0.9rem;
+        color: #94a3b8;
+        margin-bottom: 6px;
+    }
+    .action-log {
+        background: #0b1220;
+        border: 1px solid #1e293b;
+        border-radius: 8px;
+        padding: 10px;
+        min-height: 60px;
+        max-height: 160px;
+        overflow: auto;
+        white-space: pre-wrap;
+        color: #cbd5e1;
+        margin: 0;
+    }
+    .modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(3, 7, 18, 0.7);
+        display: grid;
+        place-items: center;
+        z-index: 50;
+    }
+    .modal.hidden {
+        display: none;
+    }
+    .modal-card {
+        background: #121b2a;
+        border: 1px solid #223046;
+        border-radius: 16px;
+        padding: 20px 22px;
+        width: min(420px, 90vw);
+        box-shadow: 0 25px 60px rgba(0, 0, 0, 0.45);
+    }
+    .modal-card h3 {
+        margin: 0 0 10px;
+    }
+    .modal-card p {
+        margin: 0;
+        color: #b4c2d7;
+    }
+    .modal-actions {
+        margin-top: 16px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+    }
+    @media (max-width: 1100px) {
+        .monitor-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    @media (max-width: 900px) {
+        .container {
+            padding: 28px 22px;
+        }
+    }
+    @media (max-width: 720px) {
+        .monitor-grid {
+            gap: 16px;
+        }
+        .container {
+            padding: 24px 18px;
+        }
+    }
 </style>
 
 <script>
@@ -102,11 +245,11 @@
     const shardArtChart = new Chart(ctxShardArt, {
         type: 'bar',
         data: {
-            labels: ['Shard1 (Sci)', 'Shard2 (Tech)'],
+            labels: [],
             datasets: [{
                 label: 'Documents',
-                data: [0, 0],
-                backgroundColor: ['#4CAF50', '#E91E63']
+                data: [],
+                backgroundColor: ['#4CAF50', '#E91E63', '#03A9F4']
             }]
         },
         options: {
@@ -120,11 +263,11 @@
     const shardRankChart = new Chart(ctxShardRank, {
         type: 'bar',
         data: {
-            labels: ['Shard1 (Daily)', 'Shard2 (Wk/Mo)'],
+            labels: [],
             datasets: [{
                 label: 'Documents',
-                data: [0, 0],
-                backgroundColor: ['#FFC107', '#03A9F4']
+                data: [],
+                backgroundColor: ['#FFC107', '#03A9F4', '#22c55e']
             }]
         },
         options: {
@@ -133,6 +276,85 @@
             scales: { x: { grid: { color: '#2a3b55' } } }
         }
     });
+
+    const shardLabelMap = {
+        shard1ReplSet: 'Shard1',
+        shard2ReplSet: 'Shard2',
+        shard3ReplSet: 'Shard3'
+    };
+
+    function getShardLabel(shardId) {
+        return shardLabelMap[shardId] || shardId;
+    }
+
+    function updateShardChart(chart, shardIds, distMap) {
+        chart.data.labels = shardIds.map(getShardLabel);
+        chart.data.datasets[0].data = shardIds.map(id => distMap[id] || 0);
+        chart.update();
+    }
+
+    function updateShardList(shards) {
+        const listEl = document.getElementById('shard-list');
+        listEl.innerHTML = '';
+        if (!shards.length) {
+            const li = document.createElement('li');
+            li.textContent = 'No shards detected';
+            listEl.appendChild(li);
+            return;
+        }
+        shards.forEach(shard => {
+            const li = document.createElement('li');
+            const name = document.createElement('strong');
+            name.textContent = getShardLabel(shard.id || 'Unknown');
+            const host = document.createElement('span');
+            host.textContent = shard.host || '-';
+            li.appendChild(name);
+            li.appendChild(host);
+            listEl.appendChild(li);
+        });
+    }
+
+    async function startAction(actionName, payload = null) {
+        const response = await fetch(`/api/monitor/action/${actionName}/start`, {
+            method: 'POST',
+            headers: payload ? { 'Content-Type': 'application/json' } : {},
+            body: payload ? JSON.stringify(payload) : null
+        });
+        return response.json();
+    }
+
+    async function fetchActionStatus(actionName) {
+        const response = await fetch(`/api/monitor/action/${actionName}`);
+        return response.json();
+    }
+
+    function renderActionStatus(actionName, state) {
+        const statusEl = document.getElementById('action-status');
+        const logEl = document.getElementById('action-log');
+        const status = state.status || 'idle';
+        statusEl.textContent = `${actionName}: ${status}`;
+        logEl.textContent = state.output || '';
+    }
+
+    function setActionButtonsBusy(busy) {
+        document.getElementById('btn-add').disabled = busy;
+        document.getElementById('btn-migrate').disabled = busy;
+        document.getElementById('btn-remove').disabled = busy;
+    }
+
+    function pickDisplayAction(states) {
+        const running = states.find(state => state.status === 'running');
+        if (running) {
+            return running;
+        }
+        const finished = states
+            .filter(state => state.finished_at)
+            .sort((a, b) => b.finished_at.localeCompare(a.finished_at));
+        if (finished.length) {
+            return finished[0];
+        }
+        return states[0];
+    }
 
     let prevOps = null;
 
@@ -145,6 +367,7 @@
             document.getElementById('mem-val').innerHTML = `${data.memory.resident} <small>MB</small>`;
             document.getElementById('insert-val').innerText = data.opcounters.insert.toLocaleString();
             document.getElementById('query-val').innerText = data.opcounters.query.toLocaleString();
+            document.getElementById('shard-count').innerText = (data.shards || []).length;
             document.getElementById('last-update').innerText = `Updated: ${data.timestamp}`;
 
             if (prevOps) {
@@ -166,19 +389,14 @@
             prevOps = data.opcounters;
 
             const artDist = data.distribution.articles || {};
-            shardArtChart.data.datasets[0].data = [
-                artDist['shard1ReplSet'] || 0, 
-                artDist['shard2ReplSet'] || 0
-            ];
-            shardArtChart.update();
+            const shardIds = (data.shards || []).map(shard => shard.id).filter(Boolean);
+            const resolvedShardIds = shardIds.length ? shardIds : Object.keys(artDist);
+            updateShardChart(shardArtChart, resolvedShardIds, artDist);
 
             // Handle PopRanks
             const rankDist = data.distribution.pop_ranks || {};
-            shardRankChart.data.datasets[0].data = [
-                rankDist['shard1ReplSet'] || 0, 
-                rankDist['shard2ReplSet'] || 0
-            ];
-            shardRankChart.update();
+            updateShardChart(shardRankChart, resolvedShardIds, rankDist);
+            updateShardList(data.shards || []);
 
         } catch (error) {
             console.error("Monitor fetch error:", error);
@@ -187,8 +405,89 @@
         }
     }
 
+    let addResetPrompted = false;
+
+    async function pollActions() {
+        try {
+            const addState = await fetchActionStatus('add_shard3');
+            const migrateState = await fetchActionStatus('migrate_shard3');
+            const removeState = await fetchActionStatus('remove_shard3');
+            const states = [
+                { name: 'add_shard3', ...addState },
+                { name: 'migrate_shard3', ...migrateState },
+                { name: 'remove_shard3', ...removeState }
+            ];
+            const displayState = pickDisplayAction(states);
+            renderActionStatus(displayState.name, displayState);
+            const busy = states.some(state => state.status === 'running');
+            setActionButtonsBusy(busy);
+
+            if (!addResetPrompted
+                && addState.status === 'error'
+                && (addState.output || '').includes('data directories are not empty')) {
+                showResetPrompt();
+            }
+        } catch (error) {
+            console.error("Action poll error:", error);
+        }
+    }
+
+    document.getElementById('btn-add').addEventListener('click', async () => {
+        await startAction('add_shard3');
+        pollActions();
+    });
+
+    document.getElementById('btn-migrate').addEventListener('click', async () => {
+        await startAction('migrate_shard3');
+        pollActions();
+    });
+
+    document.getElementById('btn-remove').addEventListener('click', async () => {
+        await startAction('remove_shard3');
+        pollActions();
+    });
+
     // Run every 2 seconds
     setInterval(fetchStats, 2000);
+    setInterval(pollActions, 2000);
     fetchStats();
+    pollActions();
+</script>
+
+<div id="reset-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="reset-title">
+    <div class="modal-card">
+        <h3 id="reset-title">Reset shard3 data?</h3>
+        <p>Shard3 data directories are not empty. Do you want to clear them and re-add shard3?</p>
+        <div class="modal-actions">
+            <button id="reset-cancel" class="btn">Cancel</button>
+            <button id="reset-confirm" class="btn btn-primary">Clear & Add</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const resetModal = document.getElementById('reset-modal');
+    const resetCancel = document.getElementById('reset-cancel');
+    const resetConfirm = document.getElementById('reset-confirm');
+
+    function showResetPrompt() {
+        resetModal.classList.remove('hidden');
+    }
+
+    function hideResetPrompt() {
+        resetModal.classList.add('hidden');
+    }
+
+    resetCancel.addEventListener('click', () => {
+        addResetPrompted = true;
+        hideResetPrompt();
+    });
+
+    resetConfirm.addEventListener('click', async () => {
+        addResetPrompted = true;
+        hideResetPrompt();
+        await startAction('add_shard3', { reset: true });
+        pollActions();
+    });
 </script>
 {% endblock %}

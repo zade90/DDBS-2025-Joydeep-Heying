@@ -12,6 +12,11 @@
     </div>
 
     <div class="panel">
+        {% if status == 'success' %}
+            <div class="alert success">
+                Article created. Files uploaded and saved to the database.
+            </div>
+        {% endif %}
         <form method="POST" enctype="multipart/form-data" class="stack">
             <div class="form-grid">
                 <div class="form-group">
@@ -46,18 +51,20 @@
 
                 <div class="form-group">
                     <label for="text">Text</label>
-                    <input id="text" type="text" name="text" placeholder="Text" required>
+                    <input id="text" type="file" name="text" accept=".txt">
+                    <div class="help-text">Upload article text (optional).</div>
                 </div>
 
                 <div class="form-group">
-                    <label for="image">Image Filename(s)</label>
-                    <input id="image" type="text" name="image" placeholder="image1.jpg, image2.png">
-                    <div class="help-text">Uses media store filenames (comma-separated supported).</div>
+                    <label for="image">Image</label>
+                    <input id="image" type="file" name="image" accept="image/*">
+                    <div class="help-text">Supported: jpg, png, gif.</div>
                 </div>
 
                 <div class="form-group">
-                    <label for="video">Video Filename</label>
-                    <input id="video" type="text" name="video" placeholder="video.mp4">
+                    <label for="video">Video</label>
+                    <input id="video" type="file" name="video" accept="video/*">
+                    <div class="help-text">Supported: mp4, mov, webm.</div>
                 </div>
             </div>
 

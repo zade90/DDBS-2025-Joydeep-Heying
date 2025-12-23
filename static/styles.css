@@ -106,6 +106,19 @@ a {
     gap: 20px;
 }
 
+.alert {
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 16px;
+    font-weight: 500;
+}
+
+.alert.success {
+    background: rgba(34, 197, 94, 0.12);
+    border: 1px solid rgba(34, 197, 94, 0.4);
+    color: #bbf7d0;
+}
+
 .page-header {
     display: flex;
     align-items: flex-start;
@@ -623,6 +636,19 @@ textarea::placeholder {
     transform: scale(1.08);
 }
 
+.pagination {
+    margin-top: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+}
+
+.pagination-meta {
+    color: var(--muted);
+    font-weight: 500;
+}
+
 .card-body {
     padding: 18px;
     text-align: left;
@@ -656,6 +682,91 @@ textarea::placeholder {
     font-weight: 600;
     font-size: 0.96rem;
     transition: color 180ms ease;
+}
+
+.user-list {
+    display: grid;
+    gap: 16px;
+}
+
+.user-card {
+    background: #141f2e;
+    border-radius: 14px;
+    border: 1px solid #223046;
+    padding: 0;
+    overflow: hidden;
+}
+
+.user-summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.user-summary::-webkit-details-marker {
+    display: none;
+}
+
+.user-name {
+    font-size: 1.05rem;
+    font-weight: 600;
+}
+
+.user-meta {
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-top: 4px;
+}
+
+.user-chip {
+    background: rgba(76, 175, 80, 0.14);
+    border: 1px solid rgba(76, 175, 80, 0.5);
+    color: #bbf7d0;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.user-details {
+    border-top: 1px solid #223046;
+    padding: 16px 20px 20px;
+    background: #111826;
+}
+
+.detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px 18px;
+    font-size: 0.9rem;
+    color: #e2e8f0;
+}
+
+.detail-grid span {
+    display: block;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 4px;
+}
+
+.user-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+}
+
+.user-history {
+    background-color: #9b59b6;
+    color: #fff;
+    border: none;
 }
 
 .card-link:hover {
