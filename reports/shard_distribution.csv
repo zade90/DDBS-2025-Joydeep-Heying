@@ -1,0 +1,15 @@
+collection,shard,doc_count,data_mb,storage_mb
+users,shard1ReplSet,220,0.06,0.05
+users,shard2ReplSet,81,0.02,0.04
+articles,shard1ReplSet,115,0.03,0.04
+articles,shard2ReplSet,189,0.05,0.04
+reads,shard1ReplSet,2707,0.62,0.21
+reads,shard2ReplSet,293,0.08,0.06
+bereads,shard2ReplSet,62,0.02,0.04
+bereads,shard1ReplSet,100,0.02,0.04
+pop_ranks,shard2ReplSet,2,0.0,0.03
+pop_ranks,shard1ReplSet,1,0.0,0.03
+sci_articles,shard2ReplSet,115,0.03,0.04
+sci_articles,shard1ReplSet,0,0.0,0.01
+sci_bereads,shard1ReplSet,0,0.0,0.01
+sci_bereads,shard2ReplSet,38,0.01,0.04

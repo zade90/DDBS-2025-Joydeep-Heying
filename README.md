@@ -35,7 +35,8 @@ pip install -r requirements.txt
 - `setup_mongo_cluster.sh` auto-detects `HOSTIP` via `hostname -I`.
 - Docker volumes are stored under `./data/`.
 - MongoDB router is exposed on `localhost:27041`.
-- Redis is started on `localhost:6379`.
+- Redis is started on `localhost:6379` (override with `REDIS_HOST` / `REDIS_PORT` / `REDIS_DB`). If your host uses restrictive `docker-default` profiles, run Redis with `--security-opt apparmor=unconfined` (already set in `setup_mongo_cluster.sh`).
+- Query cache settings (used by the Flask app): `CACHE_ENABLED=1`, `CACHE_TTL_SECONDS=300`, `CACHE_TTL_SHORT_SECONDS=60`.
 
 If your host IP is different or you run multiple stacks, update `setup_mongo_cluster.sh` or
 export `HOSTIP` before running it:
@@ -80,6 +81,11 @@ python watch_read_updates.py
 ```bash
 python main.py
 ```
+
+## Benchmarking
+
+Benchmark scripts are provided under `benchmarks/` to measure load time, query latency,
+shard distribution, and cluster health. See `benchmarks/README.md` for usage.
 
 Open the UI at:
 

@@ -1,0 +1,10 @@
+| query | type | cold_ms | p50_ms | p95_ms | avg_ms | iterations |
+| --- | --- | --- | --- | --- | --- | --- |
+| articles_targeted_by_category_aid | targeted | 2.03 | 1.53 | 1.92 | 1.53 | 50 |
+| articles_scatter_by_title | scatter | 1.94 | 1.55 | 1.74 | 1.54 | 50 |
+| users_targeted_by_region_uid | targeted | 1.56 | 1.78 | 2.09 | 1.79 | 50 |
+| reads_targeted_by_region_id | targeted | 2.01 | 1.64 | 2.16 | 1.67 | 50 |
+| reads_scatter_by_uid | scatter | 3.79 | 3.46 | 3.62 | 3.42 | 50 |
+| bereads_targeted_by_category_aid | targeted | 1.38 | 1.61 | 2.26 | 1.62 | 50 |
+| pop_ranks_targeted_by_granularity_id | targeted | 1.96 | 1.8 | 2.12 | 1.79 | 50 |
+| user_history_pipeline | scatter | 22.18 | 15.63 | 19.03 | 16.18 | 50 |

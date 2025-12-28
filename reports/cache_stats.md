@@ -1,0 +1,4 @@
+| metric | value |
+| --- | --- |
+| misses | 5 |
+| hits | 5 |

@@ -1,0 +1,7 @@
+| endpoint | method | path | status_cold | status_warm | cold_ms | warm_ms | cold_hits | cold_misses | warm_hits | warm_misses |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| articles_list | GET | /articles/ | 200 | 200 | 60.94 | 6.26 | 0 | 1 | 1 | 0 |
+| users_list | GET | /users/ | 200 | 200 | 13.92 | 6.69 | 0 | 1 | 1 | 0 |
+| article_detail | GET | /articles/695147591e0624686bc14b8a/ | 200 | 200 | 16.73 | 4.94 | 0 | 1 | 1 | 0 |
+| user_history | GET | /users/56/history/ | 200 | 200 | 21.41 | 4.76 | 0 | 1 | 1 | 0 |
+| poprank_daily | POST | /poprank/ | 200 | 200 | 25.48 | 5.11 | 0 | 1 | 1 | 0 |

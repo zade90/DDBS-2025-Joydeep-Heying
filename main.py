@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 from pymongo import MongoClient
-from bson import ObjectId
+from bson import ObjectId, json_util
 from datetime import datetime
 from werkzeug.utils import secure_filename
 from pydantic import BaseModel
@@ -15,8 +15,10 @@ import gridfs
 from bson.objectid import ObjectId
 from io import BytesIO
 import redis
+from redis.exceptions import RedisError
 
 os.environ["FAST_REMOVE"] = "1"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 client = MongoClient("mongodb://localhost:27041/")  
 MEDIA_FILES_MONGO_URI = "mongodb://localhost:27041" 
 media_client = MongoClient(MEDIA_FILES_MONGO_URI)
@@ -27,13 +29,91 @@ articles_collection = db["articles"]
 pop_ranks_collection = db["pop_ranks"]
 reads_collection = db["reads"]
 fs = gridfs.GridFS(media_db)
-redis_client = redis.StrictRedis(host="localhost", port=6379, db=0)
+REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.environ.get("REDIS_PORT", "6379"))
+REDIS_DB = int(os.environ.get("REDIS_DB", "0"))
+redis_client = redis.StrictRedis(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB, decode_responses=True)
 app = Flask(__name__)
 
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
 ACTION_STATE = {}
 ACTION_LOCK = threading.Lock()
+
+CACHE_ENABLED = os.environ.get("CACHE_ENABLED", "1") == "1"
+CACHE_TTL_SECONDS = int(os.environ.get("CACHE_TTL_SECONDS", "300"))
+CACHE_TTL_SHORT_SECONDS = int(os.environ.get("CACHE_TTL_SHORT_SECONDS", "60"))
+CACHE_PREFIX = "cache:v1"
+CACHE_STATS_KEY = f"{CACHE_PREFIX}:stats"
+CACHE_VERSION_PREFIX = f"{CACHE_PREFIX}:version"
+
+
+def _cache_version(resource):
+    if not CACHE_ENABLED:
+        return "0"
+    key = f"{CACHE_VERSION_PREFIX}:{resource}"
+    try:
+        value = redis_client.get(key)
+        if not value:
+            redis_client.set(key, "1")
+            return "1"
+        return str(value)
+    except RedisError:
+        return "0"
+
+
+def _bump_cache_version(resource):
+    if not CACHE_ENABLED:
+        return
+    key = f"{CACHE_VERSION_PREFIX}:{resource}"
+    try:
+        redis_client.incr(key)
+    except RedisError:
+        pass
+
+
+def _cache_key(resource, *parts):
+    version = _cache_version(resource)
+    suffix = ":".join(str(part) for part in parts if part is not None and part != "")
+    if suffix:
+        return f"{CACHE_PREFIX}:{resource}:v{version}:{suffix}"
+    return f"{CACHE_PREFIX}:{resource}:v{version}"
+
+
+def _cache_stat(field):
+    if not CACHE_ENABLED:
+        return
+    try:
+        redis_client.hincrby(CACHE_STATS_KEY, field, 1)
+    except RedisError:
+        pass
+
+
+def cache_get(key):
+    if not CACHE_ENABLED:
+        return None
+    try:
+        payload = redis_client.get(key)
+    except RedisError:
+        return None
+    if payload is None:
+        _cache_stat("misses")
+        return None
+    _cache_stat("hits")
+    try:
+        return json_util.loads(payload)
+    except Exception:
+        return None
+
+
+def cache_set(key, value, ttl=None):
+    if not CACHE_ENABLED:
+        return
+    expiry = CACHE_TTL_SECONDS if ttl is None else ttl
+    try:
+        redis_client.setex(key, expiry, json_util.dumps(value))
+    except RedisError:
+        pass
 
 def _update_action(name, payload):
     with ACTION_LOCK:
@@ -53,7 +133,8 @@ def _run_script_action(name, script_path, env=None):
             stderr=subprocess.STDOUT,
             text=True,
             bufsize=1,
-            env=env
+            env=env,
+            cwd=BASE_DIR
         )
         output_lines = []
         while True:
@@ -120,12 +201,24 @@ def home():
 
 @app.route("/users/")
 def users_page():
-    page = max(int(request.args.get('page', 1)), 1)
+    requested_page = max(int(request.args.get('page', 1)), 1)
+    cache_key = _cache_key("users", "page", requested_page)
+    cached = cache_get(cache_key)
+    if cached:
+        return render_template("users.html", **cached)
+
+    page = requested_page
     per_page = 12
     total_users = users_collection.count_documents({})
     total_pages = max((total_users + per_page - 1) // per_page, 1)
     if page > total_pages:
         page = total_pages
+
+    if page != requested_page:
+        cache_key = _cache_key("users", "page", page)
+        cached = cache_get(cache_key)
+        if cached:
+            return render_template("users.html", **cached)
 
     users = list(
         users_collection.find()
@@ -135,7 +228,9 @@ def users_page():
     )
     for user in users:
         user["_id"] = str(user["_id"])
-    return render_template("users.html", users=users, page=page, total_pages=total_pages)
+    context = {"users": users, "page": page, "total_pages": total_pages}
+    cache_set(cache_key, context)
+    return render_template("users.html", **context)
 
 
 @app.route("/users/edit/<user_id>/", methods=["GET", "POST"])
@@ -160,6 +255,8 @@ def edit_user(user_id):
         }
 
         users_collection.update_one({"_id": ObjectId(user_id)}, {"$set": updated_data})
+        _bump_cache_version("users")
+        _bump_cache_version("reads")
 
         return redirect(url_for('users_page'))
 
@@ -168,7 +265,13 @@ def edit_user(user_id):
 @app.route("/articles/")
 def articles_page():
     search_query = request.args.get('search', '').strip()
-    page = max(int(request.args.get('page', 1)), 1)
+    requested_page = max(int(request.args.get('page', 1)), 1)
+    cache_key = _cache_key("articles", "list", requested_page, search_query or "all")
+    cached = cache_get(cache_key)
+    if cached:
+        return render_template("articles.html", **cached)
+
+    page = requested_page
     per_page = 9
     query_filter = {}
     if search_query:
@@ -178,6 +281,12 @@ def articles_page():
     total_pages = max((total_articles + per_page - 1) // per_page, 1)
     if page > total_pages:
         page = total_pages
+
+    if page != requested_page:
+        cache_key = _cache_key("articles", "list", page, search_query or "all")
+        cached = cache_get(cache_key)
+        if cached:
+            return render_template("articles.html", **cached)
 
     articles = list(
         articles_collection.find(query_filter)
@@ -194,13 +303,14 @@ def articles_page():
         else:
             article["image_url"] = None
 
-    return render_template(
-        "articles.html",
-        articles=articles,
-        search_query=search_query,
-        page=page,
-        total_pages=total_pages
-    )
+    context = {
+        "articles": articles,
+        "search_query": search_query,
+        "page": page,
+        "total_pages": total_pages,
+    }
+    cache_set(cache_key, context)
+    return render_template("articles.html", **context)
 
 def format_timestamp(timestamp_ms):
     timestamp = datetime.utcfromtimestamp(timestamp_ms / 1000)
@@ -211,6 +321,11 @@ def poprank_page():
     if request.method == "POST":
         granularity = request.form.get("granularity")
         if granularity:
+            cache_key = _cache_key("poprank", "list", granularity)
+            cached = cache_get(cache_key)
+            if cached:
+                return render_template("poprank_display.html", **cached)
+
             poprank_data = list(pop_ranks_collection.find({"temporalGranularity": granularity}))
             
             all_articles = []
@@ -231,12 +346,19 @@ def poprank_page():
                     "timestamp_ms": record.get("timestamp")
                 })
             
-            return render_template("poprank_display.html", granularity=granularity, all_articles=all_articles)
+            context = {"granularity": granularity, "all_articles": all_articles}
+            cache_set(cache_key, context, ttl=CACHE_TTL_SHORT_SECONDS)
+            return render_template("poprank_display.html", **context)
     
     return render_template("poprank_select_granularity.html")
 
 @app.route("/poprank/<granularity>/<timestamp>/")
 def poprank_ranking(granularity, timestamp):
+    cache_key = _cache_key("poprank", "detail", granularity, timestamp)
+    cached = cache_get(cache_key)
+    if cached:
+        return render_template("poprank_ranking.html", **cached)
+
     timestamp_ms = int(timestamp)
     print(timestamp_ms)
     record = pop_ranks_collection.find_one({
@@ -257,7 +379,9 @@ def poprank_ranking(granularity, timestamp):
     
     formatted_date = format_timestamp(record.get("timestamp"))
 
-    return render_template("poprank_ranking.html", granularity=granularity, timestamp=formatted_date, articles=articles)
+    context = {"granularity": granularity, "timestamp": formatted_date, "articles": articles}
+    cache_set(cache_key, context, ttl=CACHE_TTL_SHORT_SECONDS)
+    return render_template("poprank_ranking.html", **context)
 
     return render_template("poprank_select_granularity.html")
 
@@ -298,6 +422,8 @@ def add_user():
         }
 
         users_collection.insert_one(user_data)
+        _bump_cache_version("users")
+        _bump_cache_version("reads")
 
         return redirect(url_for('users_page'))
 
@@ -306,6 +432,8 @@ def add_user():
 @app.route("/users/delete/<user_id>/", methods=["GET"])
 def delete_user(user_id):
     users_collection.delete_one({"_id": ObjectId(user_id)})
+    _bump_cache_version("users")
+    _bump_cache_version("reads")
     return redirect(url_for('users_page'))
 
 @app.route('/files/<filename>')
@@ -341,12 +469,11 @@ def add_article():
         authors = request.form.get("authors")
         language = request.form.get("language")
         
-        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
         text = request.files.get("text")
         text_filename = None
         if text and text.filename:
             text_filename = secure_filename(text.filename)
-            text.save(os.path.join(app.config['UPLOAD_FOLDER'], text_filename))
+            fs.put(text, filename=text_filename, content_type=text.content_type or "text/plain")
 
         image = request.files.get("image")
         image_filename = ""
@@ -376,6 +503,7 @@ def add_article():
         }
         
         articles_collection.insert_one(article_data)
+        _bump_cache_version("articles")
         return redirect(url_for('add_article', status='success'))
 
     status = request.args.get('status', '')
@@ -419,6 +547,7 @@ def edit_article(article_id):
         }
 
         articles_collection.update_one({"_id": ObjectId(article_id)}, {"$set": updated_data})
+        _bump_cache_version("articles")
         return redirect(url_for('articles_page'))
 
     return render_template("edit_article.html", article=article)
@@ -435,13 +564,29 @@ def delete_article(article_id):
         return "Article not found", 404
 
     articles_collection.delete_one({"_id": ObjectId(article_id)})
+    _bump_cache_version("articles")
 
     return redirect(url_for('articles_page'))
 
 
 @app.route("/articles/<article_id>/")
 def article_detail(article_id):
-    article = articles_collection.find_one({"_id": ObjectId(article_id)})
+    cache_key = _cache_key("articles", "detail", article_id)
+    cached = cache_get(cache_key)
+    if cached:
+        return render_template("article_detail.html", article=cached)
+
+    article = None
+    if ObjectId.is_valid(article_id):
+        article = articles_collection.find_one({"_id": ObjectId(article_id)})
+    if not article:
+        article = articles_collection.find_one({"aid": article_id})
+    if not article:
+        article = articles_collection.find_one({"id": article_id})
+    if not article and not article_id.startswith("a"):
+        article = articles_collection.find_one({"id": f"a{article_id}"})
+    if not article and not article_id.startswith("a"):
+        article = articles_collection.find_one({"aid": f"a{article_id}"})
     if not article:
         return "Article not found", 404
     
@@ -454,18 +599,14 @@ def article_detail(article_id):
     else:
         article["human_readable_timestamp"] = "Date not available"
     
-    image_filenames_list = article.get("image", "").split(",")[0:-1]
+    image_field = article.get("image", "")
+    image_filenames_list = [name.strip() for name in image_field.split(",") if name.strip()]
     image_urls = []
     
     for image_filename in image_filenames_list:
-        if image_filename:
-            image_file = fs.find_one({"filename": image_filename})
-            if image_file:
-                image_urls.append(f"/files/{image_filename}")
-            else:
-                image_urls.append(None)
-        else:
-            image_urls.append(None)
+        image_file = fs.find_one({"filename": image_filename})
+        if image_file:
+            image_urls.append(f"/files/{image_filename}")
     
     article["image_urls"] = image_urls
 
@@ -473,9 +614,14 @@ def article_detail(article_id):
     if text_filename:
         text_file = fs.find_one({"filename": text_filename})
         if text_file:
-            article["content"] = text_file.read().decode('utf-8')
+            article["content"] = text_file.read().decode('utf-8', errors='replace')
         else:
-            article["content"] = "Content not found."
+            local_path = os.path.join(BASE_DIR, app.config['UPLOAD_FOLDER'], text_filename)
+            if os.path.exists(local_path):
+                with open(local_path, "r", encoding="utf-8", errors="replace") as handle:
+                    article["content"] = handle.read()
+            else:
+                article["content"] = "Content not found."
     else:
         article["content"] = "No text content available."
 
@@ -488,12 +634,22 @@ def article_detail(article_id):
             article["video_url"] = None
     else:
         article["video_url"] = None
-
+    cache_keys = {cache_key}
+    for alt_id in [article.get("aid"), article.get("id"), article.get("_id")]:
+        if alt_id:
+            cache_keys.add(_cache_key("articles", "detail", str(alt_id)))
+    for key in cache_keys:
+        cache_set(key, article)
     return render_template("article_detail.html", article=article)
 
 
 @app.route("/users/<uid>/history/")
 def user_history(uid):
+    cache_key = _cache_key("reads", "history", uid)
+    cached = cache_get(cache_key)
+    if cached:
+        return render_template("user_history.html", **cached)
+
     user = users_collection.find_one({"uid": uid})
     
     pipeline = [
@@ -530,7 +686,9 @@ def user_history(uid):
         except:
             record["date_str"] = "Unknown"
 
-    return render_template("user_history.html", user=user, history=history_records)
+    context = {"user": user, "history": history_records}
+    cache_set(cache_key, context, ttl=CACHE_TTL_SHORT_SECONDS)
+    return render_template("user_history.html", **context)
 
 
 
@@ -657,9 +815,9 @@ def get_action_status(action_name):
 @app.route("/api/monitor/action/<action_name>/start", methods=["POST"])
 def start_action(action_name):
     scripts = {
-        "add_shard3": os.path.join(os.getcwd(), "shard3_add.sh"),
-        "migrate_shard3": os.path.join(os.getcwd(), "shard3_migrate_chunks.sh"),
-        "remove_shard3": os.path.join(os.getcwd(), "shard3_remove.sh")
+        "add_shard3": os.path.join(BASE_DIR, "shard3_add.sh"),
+        "migrate_shard3": os.path.join(BASE_DIR, "shard3_migrate_chunks.sh"),
+        "remove_shard3": os.path.join(BASE_DIR, "shard3_remove.sh")
     }
     script_path = scripts.get(action_name)
     if not script_path or not os.path.exists(script_path):

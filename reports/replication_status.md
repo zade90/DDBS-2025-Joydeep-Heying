@@ -1,0 +1,9 @@
+| replica_set | member | state | health | optime | lag_sec |
+| --- | --- | --- | --- | --- | --- |
+| configReplSet | 192.168.1.10:27019 | PRIMARY | 1.0 | 2025-12-28 14:35:14 | 0.0 |
+| configReplSet | 192.168.1.10:27020 | SECONDARY | 1.0 | 2025-12-28 14:35:13 | 1.0 |
+| configReplSet | 192.168.1.10:27021 | SECONDARY | 1.0 | 2025-12-28 14:35:13 | 1.0 |
+| shard1ReplSet | 192.168.1.10:27031 | PRIMARY | 1.0 | 2025-12-28 14:35:13 | 0.0 |
+| shard1ReplSet | 192.168.1.10:27032 | SECONDARY | 1.0 | 2025-12-28 14:35:13 | 0.0 |
+| shard2ReplSet | 192.168.1.10:27033 | SECONDARY | 1.0 | 2025-12-28 14:35:13 | 0.0 |
+| shard2ReplSet | 192.168.1.10:27034 | PRIMARY | 1.0 | 2025-12-28 14:35:13 | 0.0 |

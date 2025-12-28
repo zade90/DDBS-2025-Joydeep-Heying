@@ -1,0 +1,2 @@
+| collection | shard | chunks |
+| --- | --- | --- |

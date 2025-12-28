@@ -78,6 +78,6 @@ add_shards
 
 echo "MongoDB sharded cluster is ready."
 
-docker run -d -p 6379:6379 redis/redis-stack:latest
+docker run -d --name redis-cache --security-opt apparmor=unconfined -p 6379:6379 redis/redis-stack:latest
 
 docker run -d -p 27051:27017 mongo:latest

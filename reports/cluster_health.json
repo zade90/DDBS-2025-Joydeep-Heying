@@ -1,0 +1,65 @@
+{
+  "timestamp": "2025-12-28T14:35:15.366903Z",
+  "opcounters": {
+    "insert": 8503,
+    "query": 4469,
+    "update": 44,
+    "delete": 0,
+    "getmore": 3,
+    "command": 25210
+  },
+  "connections": {
+    "current": 12,
+    "available": 419418,
+    "totalCreated": 572,
+    "rejected": 0,
+    "active": 6,
+    "queuedForEstablishment": 0,
+    "establishmentRateLimit": {
+      "rejected": 0,
+      "exempted": 0,
+      "interruptedDueToClientDisconnect": 0
+    },
+    "threaded": 12,
+    "exhaustIsMaster": 0,
+    "exhaustHello": 4,
+    "awaitingTopologyChanges": 5,
+    "loadBalanced": 0
+  },
+  "mem": {
+    "bits": 64,
+    "resident": 432,
+    "virtual": 2524,
+    "supported": true,
+    "secureAllocByteCount": 0,
+    "secureAllocBytesInPages": 0
+  },
+  "uptime": 461786.0,
+  "shards": [
+    {
+      "_id": "shard1ReplSet",
+      "host": "shard1ReplSet/192.168.1.10:27031,192.168.1.10:27032",
+      "tags": [
+        "Beijing",
+        "science",
+        "daily"
+      ],
+      "state": 1,
+      "topologyTime": "Timestamp(1766927845, 10)",
+      "replSetConfigVersion": -1
+    },
+    {
+      "_id": "shard2ReplSet",
+      "host": "shard2ReplSet/192.168.1.10:27033,192.168.1.10:27034",
+      "tags": [
+        "Hong Kong",
+        "technology",
+        "science_dup",
+        "weekly_monthly"
+      ],
+      "state": 1,
+      "topologyTime": "Timestamp(1766470762, 32)",
+      "replSetConfigVersion": -1
+    }
+  ]
+}
